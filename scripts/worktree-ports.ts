@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 export const DEFAULT_WORKTREE_DEV_BASE_PORT = 4321;
@@ -155,7 +155,7 @@ function buildDatabaseUrl(
   const user = env.POSTGRES_USER || "house_calendar";
   const password = env.POSTGRES_PASSWORD || "house_calendar";
   const database = env.POSTGRES_DB || "house_calendar";
-  return `postgresql://${user}:${password}@127.0.0.1:${postgresPort}/${database}`;
+  return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@127.0.0.1:${postgresPort}/${encodeURIComponent(database)}`;
 }
 
 export function resolveWorktreePorts({
@@ -232,17 +232,6 @@ export function writeWorktreeEnvFiles(
 ): void {
   const root = bundle.worktreeRoot;
   mkdirSync(root, { recursive: true });
-
-  const legacyEnvLocalPath = resolve(root, ".env.local");
-  const legacyComposePath = resolve(root, ".env.compose");
-
-  if (existsSync(legacyEnvLocalPath)) {
-    rmSync(legacyEnvLocalPath);
-  }
-
-  if (existsSync(legacyComposePath)) {
-    rmSync(legacyComposePath);
-  }
 
   writeFileSync(
     resolve(root, ".env"),

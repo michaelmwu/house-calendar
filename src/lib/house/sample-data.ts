@@ -4,11 +4,11 @@ import {
   formatISO,
   parseISO,
   startOfMonth,
-  startOfToday,
 } from "date-fns";
 import { configToHouseConfig } from "@/lib/config/config";
 import exampleConfig from "../../../config/config.example";
 import { deriveDailyAvailability } from "./availability";
+import { currentDateInTimeZone } from "./date";
 import { parseEventTitle } from "./parser";
 import {
   type HouseConfig,
@@ -78,7 +78,7 @@ export function buildSampleRawEvents(
   ];
 }
 
-const today = startOfToday();
+const today = parseISO(currentDateInTimeZone(exampleHouseConfig.timezone));
 const calendarStart = startOfMonth(today);
 
 export const sampleRawEvents: RawCalendarEvent[] = buildSampleRawEvents(today);

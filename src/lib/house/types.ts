@@ -23,13 +23,46 @@ export const personSchema = z.object({
   publicVisibility: personVisibilitySchema,
 });
 
-export const parserRuleSchema = z.object({
-  match: z.string(),
-  type: parserRuleTypeSchema,
-  roomId: z.string().optional(),
-  actorId: z.string().optional(),
-  visibility: visibilitySchema,
+const parserRuleMatchSchema = z.string().superRefine((value, ctx) => {
+  try {
+    new RegExp(value, "i");
+  } catch (error) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        error instanceof Error
+          ? `Invalid parser rule regex: ${error.message}`
+          : "Invalid parser rule regex.",
+    });
+  }
 });
+
+const parserRuleBaseShape = {
+  match: parserRuleMatchSchema,
+  visibility: visibilitySchema,
+} as const;
+
+export const parserRuleSchema = z.discriminatedUnion("type", [
+  z.object({
+    ...parserRuleBaseShape,
+    type: z.literal("stay.whole_house"),
+  }),
+  z.object({
+    ...parserRuleBaseShape,
+    type: z.literal("stay.room"),
+    roomId: z.string(),
+  }),
+  z.object({
+    ...parserRuleBaseShape,
+    type: z.literal("presence.in"),
+    actorId: z.string(),
+  }),
+  z.object({
+    ...parserRuleBaseShape,
+    type: z.literal("presence.out"),
+    actorId: z.string(),
+  }),
+]);
 
 export const sharePolicySchema = z.object({
   name: z.string(),
@@ -42,17 +75,43 @@ export const inferenceSchema = z.object({
   carryForwardDays: z.number().int().nonnegative(),
 });
 
-export const houseConfigSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  timezone: z.string(),
-  rooms: z.array(roomSchema),
-  people: z.array(personSchema),
-  visibleHousemateIds: z.array(z.string()).default([]),
-  sharePolicies: z.array(sharePolicySchema),
-  rules: z.array(parserRuleSchema),
-  inference: inferenceSchema,
-});
+export const houseConfigSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    timezone: z.string(),
+    rooms: z.array(roomSchema),
+    people: z.array(personSchema),
+    visibleHousemateIds: z.array(z.string()).default([]),
+    sharePolicies: z.array(sharePolicySchema),
+    rules: z.array(parserRuleSchema),
+    inference: inferenceSchema,
+  })
+  .superRefine((config, ctx) => {
+    const roomIds = new Set(config.rooms.map((room) => room.id));
+    const personIds = new Set(config.people.map((person) => person.id));
+
+    for (const [index, rule] of config.rules.entries()) {
+      if (rule.type === "stay.room" && !roomIds.has(rule.roomId)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Unknown roomId "${rule.roomId}" for parser rule.`,
+          path: ["rules", index, "roomId"],
+        });
+      }
+
+      if (
+        (rule.type === "presence.in" || rule.type === "presence.out") &&
+        !personIds.has(rule.actorId)
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Unknown actorId "${rule.actorId}" for parser rule.`,
+          path: ["rules", index, "actorId"],
+        });
+      }
+    }
+  });
 
 export const rawCalendarEventSchema = z.object({
   id: z.string(),

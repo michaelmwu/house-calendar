@@ -13,6 +13,7 @@ export default function Home() {
           days={sampleDerivedDays}
           houseName={exampleHouseConfig.name}
           requestEnabled={Boolean(requestPolicy?.canRequest)}
+          timezone={exampleHouseConfig.timezone}
         />
       </div>
     </main>

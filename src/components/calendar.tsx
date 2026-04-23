@@ -9,16 +9,17 @@ import {
   isAfter,
   parseISO,
   startOfMonth,
-  startOfToday,
   startOfWeek,
 } from "date-fns";
 import { useState } from "react";
+import { currentDateInTimeZone } from "@/lib/house/date";
 import type { DailyAvailability } from "@/lib/house/types";
 
 type CalendarProps = {
   days: DailyAvailability[];
   houseName: string;
   requestEnabled: boolean;
+  timezone: string;
 };
 
 const statusClasses = {
@@ -134,8 +135,13 @@ function formatRoomSummary(day: DailyAvailability): string {
   return `${occupiedCount} room occupied`;
 }
 
-export function Calendar({ days, houseName, requestEnabled }: CalendarProps) {
-  const today = format(startOfToday(), "yyyy-MM-dd");
+export function Calendar({
+  days,
+  houseName,
+  requestEnabled,
+  timezone,
+}: CalendarProps) {
+  const today = currentDateInTimeZone(timezone);
   const [selectedDate, setSelectedDate] = useState(() =>
     getDefaultSelectedDate(days, today),
   );
