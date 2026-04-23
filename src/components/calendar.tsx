@@ -14,7 +14,7 @@ import {
 import { useState } from "react";
 import type { DailyAvailability } from "@/lib/house/types";
 
-type FutureCalendarProps = {
+type CalendarProps = {
   days: DailyAvailability[];
   houseName: string;
   requestEnabled: boolean;
@@ -105,11 +105,11 @@ function formatRoomSummary(day: DailyAvailability): string {
   return `${occupiedCount} room occupied`;
 }
 
-export function FutureCalendar({
+export function Calendar({
   days,
   houseName,
   requestEnabled,
-}: FutureCalendarProps) {
+}: CalendarProps) {
   const [selectedDate, setSelectedDate] = useState(days[0]?.date ?? "");
   const months = buildMonths(days);
   const selectedDay = days.find((day) => day.date === selectedDate) ?? days[0];

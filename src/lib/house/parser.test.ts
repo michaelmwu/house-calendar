@@ -1,25 +1,25 @@
 import { describe, expect, test } from "bun:test";
 import { parseEventTitle } from "./parser";
-import { washingtonHouseConfig } from "./sample-data";
+import { exampleHouseConfig } from "./sample-data";
 
 describe("parseEventTitle", () => {
   test("parses whole-house stays from explicit rules", () => {
     const parsed = parseEventTitle(
-      "Guest stays (whole house)",
-      washingtonHouseConfig,
+      "Someone stays (whole house)",
+      exampleHouseConfig,
     );
 
     expect(parsed.type).toBe("stay");
     expect(parsed.scope).toBe("house");
     expect(parsed.visibility).toBe("private");
-    expect(parsed.personId).toBe("guest");
-    expect(parsed.confidence).toBeGreaterThan(0.9);
+    expect(parsed.personId).toBeUndefined();
+    expect(parsed.confidence).toBeGreaterThan(0.7);
   });
 
   test("parses public housemate travel", () => {
     const parsed = parseEventTitle(
       "Michael out of Japan (Europe)",
-      washingtonHouseConfig,
+      exampleHouseConfig,
     );
 
     expect(parsed.type).toBe("presence");
@@ -30,7 +30,7 @@ describe("parseEventTitle", () => {
   });
 
   test("supports bracket shorthand for presence", () => {
-    const parsed = parseEventTitle("Michael [TPE]", washingtonHouseConfig);
+    const parsed = parseEventTitle("Michael [TPE]", exampleHouseConfig);
 
     expect(parsed.type).toBe("presence");
     expect(parsed.presenceState).toBe("in");

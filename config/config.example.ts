@@ -1,6 +1,6 @@
-import type { InstanceConfig } from "../src/lib/config/instance-config";
+import type { AppConfig } from "../src/lib/config/config";
 
-const instanceConfig: InstanceConfig = {
+const config: AppConfig = {
   site: {
     id: "tokyo",
     houseName: "Tokyo House",
@@ -36,14 +36,8 @@ const instanceConfig: InstanceConfig = {
     {
       id: "michael",
       name: "Michael",
-      aliases: ["mike"],
-      visibility: "visible",
-    },
-    {
-      id: "guest",
-      name: "Guest",
       aliases: [],
-      visibility: "masked",
+      visibility: "visible",
     },
   ],
   visibleHousemateIds: ["michael"],
@@ -96,4 +90,4 @@ const instanceConfig: InstanceConfig = {
   ],
 };
 
-export default instanceConfig;
+export default config;

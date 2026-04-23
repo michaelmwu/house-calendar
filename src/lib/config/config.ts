@@ -34,7 +34,7 @@ const instanceCalendarSchema = z.object({
   envVar: z.string(),
 });
 
-export const instanceConfigSchema = z.object({
+export const appConfigSchema = z.object({
   site: instanceSiteSchema,
   calendars: z.array(instanceCalendarSchema).min(1),
   rooms: z.array(roomSchema),
@@ -45,10 +45,10 @@ export const instanceConfigSchema = z.object({
   rules: z.array(parserRuleSchema),
 });
 
-export type InstanceConfig = z.infer<typeof instanceConfigSchema>;
+export type AppConfig = z.infer<typeof appConfigSchema>;
 
-export function instanceConfigToHouseConfig(configInput: InstanceConfig) {
-  const config = instanceConfigSchema.parse(configInput);
+export function configToHouseConfig(configInput: AppConfig) {
+  const config = appConfigSchema.parse(configInput);
 
   return houseConfigSchema.parse({
     id: config.site.id,

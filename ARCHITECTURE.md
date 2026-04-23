@@ -172,8 +172,8 @@ This layer should remain framework-agnostic. It should not depend on React, rout
 
 Location:
 
-- `config/instance-config.example.ts`
-- `src/lib/config/instance-config.ts`
+- `config/config.example.ts`
+- `src/lib/config/config.ts`
 
 Responsibilities:
 
@@ -262,8 +262,8 @@ These scripts are part of the architecture. They are not incidental glue.
 
 ## A. Current Demo Flow
 
-1. `config/instance-config.example.ts` defines the example house
-2. `instanceConfigToHouseConfig()` maps it into internal house config
+1. `config/config.example.ts` defines the example house
+2. `configToHouseConfig()` maps it into internal house config
 3. sample raw events are parsed into typed events
 4. availability is derived from those parsed events
 5. UI and demo API render the derived result

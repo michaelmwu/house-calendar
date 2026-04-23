@@ -11,11 +11,10 @@ import {
   type HouseConfig,
   type RawCalendarEvent,
 } from "./types";
-import exampleInstanceConfig from "../../../config/instance-config.example";
-import { instanceConfigToHouseConfig } from "@/lib/config/instance-config";
+import exampleConfig from "../../../config/config.example";
+import { configToHouseConfig } from "@/lib/config/config";
 
-export const washingtonHouseConfig: HouseConfig =
-  instanceConfigToHouseConfig(exampleInstanceConfig);
+export const exampleHouseConfig: HouseConfig = configToHouseConfig(exampleConfig);
 
 function asDate(dateInput: Date | string): Date {
   return typeof dateInput === "string" ? parseISO(dateInput) : dateInput;
@@ -31,7 +30,7 @@ export function buildSampleRawEvents(anchorInput: Date | string): RawCalendarEve
   return [
     rawCalendarEventSchema.parse({
       id: "evt-1",
-      title: "Guest stays (whole house)",
+      title: "Someone stays (whole house)",
       startDate: isoDate(addDays(anchor, 4)),
       endDate: isoDate(addDays(anchor, 7)),
       allDay: true,
@@ -45,7 +44,7 @@ export function buildSampleRawEvents(anchorInput: Date | string): RawCalendarEve
     }),
     rawCalendarEventSchema.parse({
       id: "evt-3",
-      title: "Guest stays (guest room)",
+      title: "Someone stays (guest room)",
       startDate: isoDate(addDays(anchor, 12)),
       endDate: isoDate(addDays(anchor, 15)),
       allDay: true,
@@ -59,14 +58,14 @@ export function buildSampleRawEvents(anchorInput: Date | string): RawCalendarEve
     }),
     rawCalendarEventSchema.parse({
       id: "evt-5",
-      title: "Guest stays (my room)",
+      title: "Someone stays (my room)",
       startDate: isoDate(addDays(anchor, 39)),
       endDate: isoDate(addDays(anchor, 42)),
       allDay: true,
     }),
     rawCalendarEventSchema.parse({
       id: "evt-6",
-      title: "Guest stays (guest room)",
+      title: "Someone stays (guest room)",
       startDate: isoDate(addDays(anchor, 75)),
       endDate: isoDate(addDays(anchor, 79)),
       allDay: true,
@@ -80,11 +79,11 @@ export const sampleRawEvents: RawCalendarEvent[] = buildSampleRawEvents(today);
 
 export const sampleEventInterpretations = sampleRawEvents.map((raw) => ({
   raw,
-  parsed: parseEventTitle(raw.title, washingtonHouseConfig),
+  parsed: parseEventTitle(raw.title, exampleHouseConfig),
 }));
 
 export const sampleDerivedDays = deriveDailyAvailability(
-  washingtonHouseConfig,
+  exampleHouseConfig,
   sampleRawEvents,
   isoDate(today),
   365,

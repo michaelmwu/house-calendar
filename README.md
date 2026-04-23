@@ -6,7 +6,7 @@ Private house occupancy, public availability, and lightweight stay requests.
 
 - [ARCHITECTURE.md](/Users/michaelwu/conductor/workspaces/house-calendar/washington-v5/ARCHITECTURE.md:1) for system design and intended build order
 - [AGENTS.md](/Users/michaelwu/conductor/workspaces/house-calendar/washington-v5/AGENTS.md:1) for project-specific agent instructions
-- [config/instance-config.example.ts](/Users/michaelwu/conductor/workspaces/house-calendar/washington-v5/config/instance-config.example.ts:1) for the checked-in instance shape
+- [config/config.example.ts](/Users/michaelwu/conductor/workspaces/house-calendar/washington-v5/config/config.example.ts:1) for the checked-in config shape
 
 ## Stack
 
@@ -68,8 +68,8 @@ The app port is worktree-specific, so use `bun run ports` to see the exact URL.
 The current repo includes:
 
 - A demo landing page that shows the first product slice
-- A checked-in example instance config at `config/instance-config.example.ts`
-- A parser module for event titles like `Guest stays (guest room)` and `Michael [TPE]`
+- A checked-in example config at `config/config.example.ts`
+- A parser module for event titles like `Someone stays (guest room)` and `Michael [TPE]`
 - Availability derivation that treats end dates as departure dates
 - Postgres environment plumbing via `DATABASE_URL`
 - JSON demo endpoints at `/api/health` and `/api/demo`
@@ -87,7 +87,7 @@ The current repo includes:
 The current direction is a hybrid split:
 
 - Checked-in structural config:
-  `config/instance-config.example.ts`
+  `config/config.example.ts`
 - Secrets in env:
   `ICS_URL_*`, `DATABASE_URL`, signing secrets later
 - Mutable state in Postgres:
@@ -97,7 +97,7 @@ The app is not DB-driven for house config yet, but the shape is moving there.
 
 Recommended self-hosting flow:
 
-1. Copy `config/instance-config.example.ts` to `config/instance-config.local.ts`
+1. Copy `config/config.example.ts` to `config/config.local.ts`
 2. Change rooms, people, branding, and parsing rules
 3. Set secrets in env or Coolify
 4. Later, run a bootstrap/import command once the DB tables exist

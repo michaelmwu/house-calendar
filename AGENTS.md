@@ -19,7 +19,7 @@ Before making non-trivial changes, read:
 
 - `README.md` for developer workflow
 - `ARCHITECTURE.md` for system boundaries and future direction
-- `config/instance-config.example.ts` for the current instance-shape
+- `config/config.example.ts` for the current config shape
 
 Do not assume this is a generic starter app. The domain model matters here.
 
@@ -51,11 +51,11 @@ Treat configuration as three layers:
 
 Current checked-in example:
 
-- `config/instance-config.example.ts`
+- `config/config.example.ts`
 
 Planned private local variant:
 
-- `config/instance-config.local.ts`
+- `config/config.local.ts`
 
 Never commit:
 

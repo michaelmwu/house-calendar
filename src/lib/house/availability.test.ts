@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { deriveDailyAvailability } from "./availability";
-import { buildSampleRawEvents, washingtonHouseConfig } from "./sample-data";
+import { buildSampleRawEvents, exampleHouseConfig } from "./sample-data";
 
 describe("deriveDailyAvailability", () => {
   const sampleRawEvents = buildSampleRawEvents("2026-04-07");
 
   test("treats the end date as the departure date", () => {
     const days = deriveDailyAvailability(
-      washingtonHouseConfig,
+      exampleHouseConfig,
       sampleRawEvents,
       "2026-04-11",
       4,
@@ -21,7 +21,7 @@ describe("deriveDailyAvailability", () => {
 
   test("marks only the guest room occupied for room-level stays", () => {
     const days = deriveDailyAvailability(
-      washingtonHouseConfig,
+      exampleHouseConfig,
       sampleRawEvents,
       "2026-04-19",
       2,
