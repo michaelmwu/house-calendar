@@ -13,13 +13,16 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function normalizeTitle(title: string): string {
+function canonicalizeTitle(title: string): string {
   return title
     .trim()
     .replace(/\s+/g, " ")
-    .replace(/\bstays\b/gi, "stay")
     .replace(/\[([^\]]+)\]/g, "($1)")
     .toLowerCase();
+}
+
+export function normalizeTitle(title: string): string {
+  return canonicalizeTitle(title).replace(/\bstays\b/gi, "stay");
 }
 
 function extractBracketHint(normalizedTitle: string): string | undefined {
@@ -51,12 +54,15 @@ function findPersonId(
 }
 
 function matchExplicitRule(
+  candidateTitles: string[],
   normalizedTitle: string,
   config: HouseConfig,
 ): Omit<ParsedCalendarEvent, "rawTitle"> | undefined {
   for (const rule of config.rules) {
     const regex = new RegExp(rule.match, "i");
-    const match = normalizedTitle.match(regex);
+    const match = candidateTitles
+      .map((title) => title.match(regex))
+      .find((candidateMatch) => candidateMatch);
 
     if (!match) {
       continue;
@@ -225,9 +231,14 @@ export function parseEventTitle(
   configInput: HouseConfig,
 ): ParsedCalendarEvent {
   const config = houseConfigSchema.parse(configInput);
+  const canonicalTitle = canonicalizeTitle(title);
   const normalizedTitle = normalizeTitle(title);
   const personId = findPersonId(normalizedTitle, config);
-  const explicitMatch = matchExplicitRule(normalizedTitle, config);
+  const explicitMatch = matchExplicitRule(
+    [...new Set([canonicalTitle, normalizedTitle])],
+    normalizedTitle,
+    config,
+  );
 
   if (explicitMatch) {
     return {

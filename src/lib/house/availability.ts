@@ -10,6 +10,7 @@ import {
 } from "./types";
 
 type WorkingDay = Omit<DailyAvailability, "status"> & {
+  hasUnknownStay: boolean;
   rooms: DailyAvailability["rooms"];
   presence: DailyAvailability["presence"];
 };
@@ -45,6 +46,7 @@ export function deriveDailyAvailability(
   const days: WorkingDay[] = enumerateDays(startDate, endDateExclusive).map(
     (date) => ({
       date,
+      hasUnknownStay: false,
       rooms: config.rooms.map((room) => ({
         id: room.id,
         name: room.name,
@@ -62,6 +64,10 @@ export function deriveDailyAvailability(
   const daysByDate = new Map(days.map((day) => [day.date, day] as const));
 
   for (const event of events) {
+    if (!event.allDay) {
+      continue;
+    }
+
     const parsed = parseEventTitle(event.title, config);
     const eventDays = enumerateDays(event.startDate, event.endDate);
 
@@ -85,7 +91,10 @@ export function deriveDailyAvailability(
           day.rooms = day.rooms.map((room) =>
             room.id === parsed.roomId ? { ...room, status: "occupied" } : room,
           );
+          continue;
         }
+
+        day.hasUnknownStay = true;
       }
 
       if (
@@ -106,8 +115,9 @@ export function deriveDailyAvailability(
     const occupiedRooms = day.rooms.filter(
       (room) => room.status === "occupied",
     ).length;
-    const status =
-      occupiedRooms === 0
+    const status = day.hasUnknownStay
+      ? "unknown"
+      : occupiedRooms === 0
         ? "available"
         : occupiedRooms === day.rooms.length
           ? "unavailable"

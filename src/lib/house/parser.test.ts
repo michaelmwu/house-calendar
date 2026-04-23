@@ -13,7 +13,20 @@ describe("parseEventTitle", () => {
     expect(parsed.scope).toBe("house");
     expect(parsed.visibility).toBe("private");
     expect(parsed.personId).toBeUndefined();
-    expect(parsed.confidence).toBeGreaterThan(0.7);
+    expect(parsed.confidence).toBe(0.99);
+  });
+
+  test("keeps explicit stay rules matchable after title normalization", () => {
+    const parsed = parseEventTitle(
+      "Someone stays (guest room)",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("stay");
+    expect(parsed.scope).toBe("room");
+    expect(parsed.roomId).toBe("guest-room");
+    expect(parsed.visibility).toBe("private");
+    expect(parsed.confidence).toBe(0.97);
   });
 
   test("parses public housemate travel", () => {
