@@ -1,0 +1,517 @@
+# ARCHITECTURE.md
+
+## Overview
+
+`house-calendar` is a single-tenant-friendly web app for turning private house calendar inputs into redacted, shareable availability.
+
+The system is designed around one central idea:
+
+**events are inputs, not UI**
+
+Private calendar data should be ingested and interpreted into typed internal facts. Public and friend-facing views should render derived availability, never raw event details.
+
+This architecture matters because the product is doing three jobs at once:
+
+1. privacy protection
+2. occupancy interpretation
+3. lightweight coordination for stay requests
+
+If those concerns blur together, the app will leak details or become harder to reason about.
+
+## Product Boundaries
+
+### What this app is
+
+- a derived availability engine
+- a privacy layer on top of private calendars
+- a trusted-friends coordination tool
+- a self-hostable instance with light branding and per-house rules
+
+### What this app is not
+
+- a public booking marketplace
+- a generic Google Calendar clone
+- a free-form natural language parser that trusts LLM guesses
+- a multi-tenant SaaS control plane, at least not today
+
+## Current State
+
+The repo currently contains a working prototype shell with:
+
+- Next.js App Router frontend
+- Bun-based local workflow
+- Postgres Docker Compose setup for local persistence plumbing
+- deterministic parser and availability modules
+- sample instance config and sample event data
+- demo APIs at `/api/health` and `/api/demo`
+
+What is real today:
+
+- worktree-aware dev ports
+- validated config schemas
+- parser and availability logic
+- docs and local runtime setup
+
+What is still scaffolding:
+
+- ICS ingestion
+- database schema and persistence layer
+- sync job
+- auth and share token implementation
+- request submission and approval workflow
+
+## Architectural Principles
+
+### 1. Deterministic before intelligent
+
+The core pipeline should use structured rules, normalization, and validation before any AI-assisted fallback.
+
+Good fits for deterministic logic:
+
+- title normalization
+- room and person alias matching
+- regex-based parsing rules
+- date expansion
+- occupancy derivation
+- privacy masking
+
+Possible future fit for AI:
+
+- admin suggestions for ambiguous events
+- parser override hints
+- import diagnostics
+
+AI should not be the source of truth for availability.
+
+### 2. Separate source data from derived state
+
+There are at least four conceptual layers:
+
+1. raw source events
+2. parsed internal facts
+3. derived daily availability
+4. viewer-facing redacted output
+
+This separation is the main privacy boundary in the system.
+
+### 3. Single-tenant deployment, reusable software
+
+The deployment model is expected to be:
+
+- one app instance per house-owner deployment
+- self-hosted via Coolify or similar
+- private env-managed secrets
+- local branding and configuration
+
+This is not the same thing as hardcoding one personal deployment into the repo. The codebase should stay reusable while supporting single-instance hosting.
+
+### 4. App on host, services in containers
+
+Local developer ergonomics matter.
+
+The current preferred local split is:
+
+- host-run app process
+- Docker Compose Postgres
+
+This keeps frontend iteration fast while still providing a realistic persistence service.
+
+## System Components
+
+## 1. Web App
+
+Location:
+
+- `src/app/*`
+
+Responsibilities:
+
+- render public or trusted-viewer availability pages
+- expose server routes for health, demo data, and later real APIs
+- host admin UI later
+- load branding metadata
+
+Current files:
+
+- `src/app/layout.tsx`
+- `src/app/page.tsx`
+- `src/app/api/health/route.ts`
+- `src/app/api/demo/route.ts`
+
+Expected future routes:
+
+- public availability views
+- request submission endpoints
+- owner/admin auth endpoints
+- sync/admin diagnostics
+- share link management
+
+## 2. Domain Logic
+
+Location:
+
+- `src/lib/house/*`
+
+Responsibilities:
+
+- schema definitions for house config and parsed events
+- title normalization
+- deterministic event parsing
+- daily availability derivation
+
+Current files:
+
+- `src/lib/house/types.ts`
+- `src/lib/house/parser.ts`
+- `src/lib/house/availability.ts`
+- `src/lib/house/sample-data.ts`
+
+This layer should remain framework-agnostic. It should not depend on React, route handlers, or database-specific code.
+
+## 3. Instance Config Layer
+
+Location:
+
+- `config/instance-config.example.ts`
+- `src/lib/config/instance-config.ts`
+
+Responsibilities:
+
+- define structural, safe-to-version-control instance config
+- validate instance-specific branding, rooms, people, calendars, and parsing rules
+- map instance config into the internal `HouseConfig` shape
+
+This is the beginning of the hybrid config model.
+
+### Config split
+
+#### Structural config, checked in
+
+Examples:
+
+- house name
+- timezone
+- rooms
+- people
+- parsing rules
+- branding
+- share policy defaults
+
+#### Secrets, env only
+
+Examples:
+
+- `ICS_URL_*`
+- signing secrets
+- mail credentials
+- privileged owner tokens
+
+#### Mutable runtime state, Postgres
+
+Examples:
+
+- imported events
+- parser overrides
+- share links
+- booking requests
+- audit events
+
+## 4. Server Runtime Helpers
+
+Location:
+
+- `src/lib/server/*`
+
+Current file:
+
+- `src/lib/server/env.ts`
+
+Responsibilities:
+
+- validate server-only environment variables
+- centralize sensitive runtime config access
+
+This layer should grow to include:
+
+- database client setup
+- secret helpers
+- sync job runtime helpers
+
+## 5. Local Tooling
+
+Location:
+
+- `scripts/*`
+
+Current files:
+
+- `scripts/worktree-ports.ts`
+- `scripts/dev.ts`
+- `scripts/typecheck.ts`
+
+Responsibilities:
+
+- derive stable per-worktree ports
+- generate `.env`
+- start Next.js on the correct port
+- work around Next route type generation quirks during standalone typecheck
+
+These scripts are part of the architecture. They are not incidental glue.
+
+## Runtime Flows
+
+## A. Current Demo Flow
+
+1. `config/instance-config.example.ts` defines the example house
+2. `instanceConfigToHouseConfig()` maps it into internal house config
+3. sample raw events are parsed into typed events
+4. availability is derived from those parsed events
+5. UI and demo API render the derived result
+
+This is not production data flow. It is a domain prototype.
+
+## B. Target Real Data Flow
+
+1. private ICS URL is provided through env or imported instance bootstrap
+2. sync job fetches ICS feed
+3. raw events are normalized and stored
+4. parser rules interpret raw titles into typed internal facts
+5. derived occupancy table is materialized or computed
+6. public/trusted viewer pages read only derived redacted state
+7. request flow creates pending request records
+8. owner approval turns a request into a real stay record or a source calendar action
+
+## Data Model Direction
+
+The database schema does not exist yet, but this is the intended shape.
+
+### Likely core tables
+
+#### `houses`
+
+- `id`
+- `slug`
+- `name`
+- `timezone`
+- branding fields
+
+#### `rooms`
+
+- `id`
+- `house_id`
+- `slug`
+- `name`
+
+#### `people`
+
+- `id`
+- `house_id`
+- `name`
+- visibility mode
+
+#### `calendar_sources`
+
+- `id`
+- `house_id`
+- provider type
+- secret source reference or stored sensitive URL
+- sync metadata
+
+#### `raw_events`
+
+- `id`
+- `calendar_source_id`
+- source event identifier
+- raw title
+- start date
+- end date
+- all-day flag
+- raw payload snapshot if needed
+
+#### `parsed_events`
+
+- `id`
+- `raw_event_id`
+- event type
+- scope
+- room reference
+- person reference
+- confidence
+- visibility
+- parse strategy
+
+#### `daily_availability`
+
+- `house_id`
+- date
+- aggregate status
+- room-level occupancy snapshot
+- visible presence snapshot
+
+This could be materialized for fast reads or computed on demand first.
+
+#### `share_links`
+
+- `id`
+- `house_id`
+- token hash
+- scope
+- expiry
+- revocation timestamp
+- viewer label
+- request permission flag
+
+#### `stay_requests`
+
+- `id`
+- `house_id`
+- `share_link_id` or viewer identity reference
+- requested room
+- arrival date
+- departure date
+- note
+- status
+- decision metadata
+
+#### `parser_overrides`
+
+- `id`
+- `raw_event_id`
+- override payload
+- creator
+- timestamps
+
+## Privacy Model
+
+The privacy model is not a frontend concern. It must be built into the data pipeline.
+
+### Required rules
+
+- raw titles should never be directly rendered to public viewers
+- guest identities should be masked by default
+- housemate presence should only be shown when explicitly configured
+- sensitive calendar source values must be treated as secrets
+- logs should not dump ICS URLs or signed share tokens
+
+### Redaction boundary
+
+The public and trusted viewer UI should consume already-redacted derived state.
+
+Do not push raw event objects to the client and try to hide fields there.
+
+## Date Semantics
+
+This is a critical domain rule.
+
+All-day stays use end-exclusive ranges:
+
+- arrival date is included
+- departure date is excluded
+
+Example:
+
+- `2026-04-11` to `2026-04-14` means nights of April 11, 12, and 13
+
+If this rule breaks, occupancy will be wrong.
+
+## Request Flow Model
+
+Requests should not reserve dates on submission.
+
+Target flow:
+
+1. viewer opens a signed link
+2. viewer sees redacted availability
+3. if the link allows requests, viewer submits desired dates
+4. request is stored as `pending`
+5. owner reviews and approves or declines
+6. only approval creates a real stay record or calendar-side action
+
+This protects against accidental holds, spam reservations, and confusing state.
+
+## Deployment Model
+
+### Local development
+
+- app on host
+- Postgres in Compose
+- worktree-aware port derivation
+
+Relevant files:
+
+- `compose.yml`
+- `scripts/worktree-ports.ts`
+- `scripts/dev.ts`
+
+### Self-hosted deployment
+
+Expected target:
+
+- Coolify or similar
+- one app service
+- one Postgres service
+- env-managed secrets
+- optional bootstrap/import step for private instance config
+
+No external image registry is required for the current plan.
+
+## Config Strategy, Current and Future
+
+### Current
+
+- checked-in example config is used directly by the demo app
+
+### Near future
+
+- private local config file for each deployment
+- bootstrap command validates and imports config into DB
+- runtime reads house/site settings from DB
+
+### Important constraint
+
+If a bootstrap command is added, it must be idempotent.
+
+Repeated deploys should upsert, not duplicate:
+
+- house
+- rooms
+- people
+- calendar sources
+- share policy defaults
+
+## Testing Strategy
+
+Current coverage:
+
+- parser behavior
+- availability derivation
+
+Missing but expected later:
+
+- ICS ingestion tests
+- parser override tests
+- share token auth tests
+- request workflow tests
+- redaction tests
+- DB integration tests
+
+The most important bugs to catch early are:
+
+- privacy leaks
+- off-by-one date logic
+- room/house conflict errors
+- request auto-booking mistakes
+
+## Near-Term Build Order
+
+The next sensible sequence is:
+
+1. choose DB layer, likely Drizzle + Postgres
+2. create schema for houses, rooms, calendar sources, share links, requests
+3. add bootstrap/import command for instance config
+4. implement ICS fetch and parse sync path
+5. persist parsed and derived state
+6. add signed share links
+7. add request submission and approval
+
+That order keeps the system honest. It avoids building UI shells for data models that do not exist yet.

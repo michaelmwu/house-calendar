@@ -1,0 +1,45 @@
+{
+  "name": "house-calendar",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "bun run scripts/dev.ts",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint . --ignore-pattern .next",
+    "ports": "bun run scripts/worktree-ports.ts",
+    "ports:write": "bun run scripts/worktree-ports.ts --write",
+    "db:start": "bun run ports:write && docker compose up -d postgres",
+    "db:stop": "bun run ports:write && docker compose down",
+    "db:logs": "bun run ports:write && docker compose logs -f postgres",
+    "test": "bun test",
+    "typecheck": "bun run scripts/typecheck.ts",
+    "check": "bun run typecheck && bun run lint && bun run test"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "next": "16.2.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "bun-types": "^1.3.13",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "ignoreScripts": [
+    "sharp",
+    "unrs-resolver"
+  ],
+  "trustedDependencies": [
+    "sharp",
+    "unrs-resolver"
+  ]
+}
