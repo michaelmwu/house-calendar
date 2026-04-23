@@ -8,7 +8,8 @@ const config: AppConfig = {
     timezone: "Asia/Tokyo",
     branding: {
       title: "Michael's Tokyo House",
-      description: "Private house occupancy, public availability, and trusted stay requests.",
+      description:
+        "Private house occupancy, public availability, and trusted stay requests.",
       themeColor: "#2d8f6f",
     },
   },

@@ -31,7 +31,10 @@ type WorktreePortBundle = {
   worktreeRoot: string;
 };
 
-function parsePortLike(value: string | undefined, name: string): number | undefined {
+function parsePortLike(
+  value: string | undefined,
+  name: string,
+): number | undefined {
   if (value === undefined || value === "") {
     return undefined;
   }
@@ -61,11 +64,16 @@ function parsePositiveInteger(
 }
 
 export function worktreePathKey(worktreeRoot: string): string {
-  return resolve(worktreeRoot).split(/[\\/]+/).filter(Boolean).join("/");
+  return resolve(worktreeRoot)
+    .split(/[\\/]+/)
+    .filter(Boolean)
+    .join("/");
 }
 
 export function worktreePortOffset(worktreeRoot: string, span: number): number {
-  const digest = createHash("sha256").update(worktreePathKey(worktreeRoot)).digest();
+  const digest = createHash("sha256")
+    .update(worktreePathKey(worktreeRoot))
+    .digest();
   return digest.readUInt32BE(0) % span;
 }
 
@@ -123,7 +131,9 @@ function resolvePort({
     defaultBasePort;
 
   if (resolvedBasePort + span - 1 > MAX_PORT) {
-    throw new Error(`${basePortEnvName} + ${WORKTREE_PORT_SPAN_ENV} - 1 must not exceed ${MAX_PORT}.`);
+    throw new Error(
+      `${basePortEnvName} + ${WORKTREE_PORT_SPAN_ENV} - 1 must not exceed ${MAX_PORT}.`,
+    );
   }
 
   const offset = worktreePortOffset(worktreeRoot, span);
@@ -138,7 +148,10 @@ function resolvePort({
   };
 }
 
-function buildDatabaseUrl(env: NodeJS.ProcessEnv, postgresPort: number): string {
+function buildDatabaseUrl(
+  env: NodeJS.ProcessEnv,
+  postgresPort: number,
+): string {
   const user = env.POSTGRES_USER || "house_calendar";
   const password = env.POSTGRES_PASSWORD || "house_calendar";
   const database = env.POSTGRES_DB || "house_calendar";
@@ -192,7 +205,10 @@ export function resolveWorktreePorts({
   };
 }
 
-function buildEnvFileContents(bundle: WorktreePortBundle, env: NodeJS.ProcessEnv): string {
+function buildEnvFileContents(
+  bundle: WorktreePortBundle,
+  env: NodeJS.ProcessEnv,
+): string {
   const postgresUser = env.POSTGRES_USER || "house_calendar";
   const postgresPassword = env.POSTGRES_PASSWORD || "house_calendar";
   const postgresDb = env.POSTGRES_DB || "house_calendar";
@@ -210,7 +226,10 @@ function buildEnvFileContents(bundle: WorktreePortBundle, env: NodeJS.ProcessEnv
   ].join("\n");
 }
 
-export function writeWorktreeEnvFiles(bundle: WorktreePortBundle, env = process.env): void {
+export function writeWorktreeEnvFiles(
+  bundle: WorktreePortBundle,
+  env = process.env,
+): void {
   const root = bundle.worktreeRoot;
   mkdirSync(root, { recursive: true });
 
@@ -225,7 +244,11 @@ export function writeWorktreeEnvFiles(bundle: WorktreePortBundle, env = process.
     rmSync(legacyComposePath);
   }
 
-  writeFileSync(resolve(root, ".env"), buildEnvFileContents(bundle, env), "utf8");
+  writeFileSync(
+    resolve(root, ".env"),
+    buildEnvFileContents(bundle, env),
+    "utf8",
+  );
 }
 
 function printSummary(bundle: WorktreePortBundle): void {

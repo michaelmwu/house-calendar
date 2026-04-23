@@ -69,7 +69,12 @@ export const parsedCalendarEventTypeSchema = z.enum([
 ]);
 
 export const presenceStateSchema = z.enum(["in", "out", "unknown"]);
-export const parsedScopeSchema = z.enum(["house", "room", "location", "unknown"]);
+export const parsedScopeSchema = z.enum([
+  "house",
+  "room",
+  "location",
+  "unknown",
+]);
 
 export const parsedCalendarEventSchema = z.object({
   rawTitle: z.string(),

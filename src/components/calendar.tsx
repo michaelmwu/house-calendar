@@ -9,6 +9,7 @@ import {
   isAfter,
   parseISO,
   startOfMonth,
+  startOfToday,
   startOfWeek,
 } from "date-fns";
 import { useState } from "react";
@@ -51,14 +52,36 @@ type CalendarMonth = {
   cells: CalendarCell[];
 };
 
+function isPastDate(date: string, today: string): boolean {
+  return date < today;
+}
+
+function getDefaultSelectedDate(
+  days: DailyAvailability[],
+  today: string,
+): string {
+  return (
+    days.find((day) => !isPastDate(day.date, today))?.date ??
+    days[0]?.date ??
+    ""
+  );
+}
+
 function buildMonths(days: DailyAvailability[]): CalendarMonth[] {
   if (days.length === 0) {
     return [];
   }
 
   const dayMap = new Map(days.map((day) => [day.date, day]));
-  const firstDate = parseISO(days[0]!.date);
-  const lastDate = parseISO(days[days.length - 1]!.date);
+  const firstDay = days[0];
+  const lastDay = days.at(-1);
+
+  if (!firstDay || !lastDay) {
+    return [];
+  }
+
+  const firstDate = parseISO(firstDay.date);
+  const lastDate = parseISO(lastDay.date);
   const months: CalendarMonth[] = [];
 
   let cursor = startOfMonth(firstDate);
@@ -96,7 +119,9 @@ function buildMonths(days: DailyAvailability[]): CalendarMonth[] {
 }
 
 function formatRoomSummary(day: DailyAvailability): string {
-  const occupiedCount = day.rooms.filter((room) => room.status === "occupied").length;
+  const occupiedCount = day.rooms.filter(
+    (room) => room.status === "occupied",
+  ).length;
 
   if (occupiedCount === 0) {
     return "All rooms free";
@@ -109,12 +134,11 @@ function formatRoomSummary(day: DailyAvailability): string {
   return `${occupiedCount} room occupied`;
 }
 
-export function Calendar({
-  days,
-  houseName,
-  requestEnabled,
-}: CalendarProps) {
-  const [selectedDate, setSelectedDate] = useState(days[0]?.date ?? "");
+export function Calendar({ days, houseName, requestEnabled }: CalendarProps) {
+  const today = format(startOfToday(), "yyyy-MM-dd");
+  const [selectedDate, setSelectedDate] = useState(() =>
+    getDefaultSelectedDate(days, today),
+  );
 
   if (days.length === 0) {
     return null;
@@ -123,7 +147,7 @@ export function Calendar({
   const months = buildMonths(days);
   const selectedDay = days.find((day) => day.date === selectedDate) ?? days[0];
   const upcomingBusyDays = days
-    .filter((day) => day.status !== "available")
+    .filter((day) => !isPastDate(day.date, today) && day.status !== "available")
     .slice(0, 6);
 
   if (!selectedDay) {
@@ -139,7 +163,7 @@ export function Calendar({
               {houseName}
             </h1>
             <p className="mt-1 font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--muted)]">
-              Future availability
+              Current month onward
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-full border border-[color:var(--card-border)] bg-white/70 px-3 py-1.5 text-xs font-medium text-[var(--muted)]">
@@ -182,16 +206,28 @@ export function Calendar({
                         );
                       }
 
-                      const isSelected = selectedDay.date === cell.day.date;
+                      const day = cell.day;
+                      const isSelected = selectedDay.date === day.date;
+                      const isPastDay = isPastDate(day.date, today);
+                      const cellClasses = isPastDay
+                        ? "cursor-default bg-stone-100 text-stone-400 ring-1 ring-stone-200"
+                        : statusClasses[day.status];
+                      const roomBarClass = isPastDay
+                        ? "bg-stone-300/80"
+                        : "bg-white/75";
+                      const dotClass = isPastDay
+                        ? "bg-stone-300"
+                        : statusDotClasses[day.status];
 
                       return (
                         <button
                           key={cell.dateKey}
                           type="button"
-                          onClick={() => setSelectedDate(cell.day!.date)}
+                          disabled={isPastDay}
+                          onClick={() => setSelectedDate(day.date)}
                           className={`aspect-[0.95] rounded-2xl p-2 text-left transition ${
-                            statusClasses[cell.day.status]
-                          } ${isSelected ? "ring-2 ring-[color:var(--foreground)]" : ""}`}
+                            cellClasses
+                          } ${isSelected && !isPastDay ? "ring-2 ring-[color:var(--foreground)]" : ""}`}
                         >
                           <div className="flex h-full flex-col justify-between">
                             <div className="flex items-start justify-between gap-2">
@@ -203,24 +239,24 @@ export function Calendar({
                                 {cell.dateLabel}
                               </span>
                               <span
-                                className={`mt-1 h-2.5 w-2.5 rounded-full ${
-                                  statusDotClasses[cell.day.status]
-                                }`}
+                                className={`mt-1 h-2.5 w-2.5 rounded-full ${dotClass}`}
                               />
                             </div>
 
                             <div className="space-y-1">
                               <p className="truncate text-[11px] font-medium capitalize">
-                                {cell.day.status}
+                                {day.status}
                               </p>
                               <div className="flex gap-1">
-                                {cell.day.rooms.map((room) => (
+                                {day.rooms.map((room) => (
                                   <span
                                     key={room.id}
                                     className={`h-1.5 flex-1 rounded-full ${
                                       room.status === "occupied"
-                                        ? "bg-[color:var(--foreground)]/70"
-                                        : "bg-white/75"
+                                        ? isPastDay
+                                          ? "bg-stone-400"
+                                          : "bg-[color:var(--foreground)]/70"
+                                        : roomBarClass
                                     }`}
                                   />
                                 ))}

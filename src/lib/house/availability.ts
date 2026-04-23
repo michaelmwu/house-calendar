@@ -1,13 +1,13 @@
 import { addDays, formatISO, isBefore, parseISO } from "date-fns";
-import {
-  dailyAvailabilitySchema,
-  houseConfigSchema,
-  rawCalendarEventSchema,
-  type DailyAvailability,
-  type HouseConfig,
-  type RawCalendarEvent,
-} from "./types";
 import { parseEventTitle } from "./parser";
+import {
+  type DailyAvailability,
+  dailyAvailabilitySchema,
+  type HouseConfig,
+  houseConfigSchema,
+  type RawCalendarEvent,
+  rawCalendarEventSchema,
+} from "./types";
 
 type WorkingDay = Omit<DailyAvailability, "status"> & {
   rooms: DailyAvailability["rooms"];
@@ -34,27 +34,31 @@ export function deriveDailyAvailability(
   nights: number,
 ): DailyAvailability[] {
   const config = houseConfigSchema.parse(configInput);
-  const events = eventsInput.map((event) => rawCalendarEventSchema.parse(event));
+  const events = eventsInput.map((event) =>
+    rawCalendarEventSchema.parse(event),
+  );
 
   const endDateExclusive = formatISO(addDays(parseISO(startDate), nights), {
     representation: "date",
   });
 
-  const days: WorkingDay[] = enumerateDays(startDate, endDateExclusive).map((date) => ({
-    date,
-    rooms: config.rooms.map((room) => ({
-      id: room.id,
-      name: room.name,
-      status: "free" as const,
-    })),
-    presence: config.people
-      .filter((person) => config.visibleHousemateIds.includes(person.id))
-      .map((person) => ({
-        personId: person.id,
-        name: person.name,
-        state: "unknown" as const,
+  const days: WorkingDay[] = enumerateDays(startDate, endDateExclusive).map(
+    (date) => ({
+      date,
+      rooms: config.rooms.map((room) => ({
+        id: room.id,
+        name: room.name,
+        status: "free" as const,
       })),
-  }));
+      presence: config.people
+        .filter((person) => config.visibleHousemateIds.includes(person.id))
+        .map((person) => ({
+          personId: person.id,
+          name: person.name,
+          state: "unknown" as const,
+        })),
+    }),
+  );
   const daysByDate = new Map(days.map((day) => [day.date, day] as const));
 
   for (const event of events) {
@@ -70,7 +74,10 @@ export function deriveDailyAvailability(
 
       if (parsed.type === "stay") {
         if (parsed.scope === "house") {
-          day.rooms = day.rooms.map((room) => ({ ...room, status: "occupied" }));
+          day.rooms = day.rooms.map((room) => ({
+            ...room,
+            status: "occupied",
+          }));
           continue;
         }
 
@@ -81,7 +88,11 @@ export function deriveDailyAvailability(
         }
       }
 
-      if (parsed.type === "presence" && parsed.personId && parsed.presenceState) {
+      if (
+        parsed.type === "presence" &&
+        parsed.personId &&
+        parsed.presenceState
+      ) {
         day.presence = day.presence.map((presence) =>
           presence.personId === parsed.personId
             ? { ...presence, state: parsed.presenceState ?? "unknown" }
@@ -92,7 +103,9 @@ export function deriveDailyAvailability(
   }
 
   return days.map((day) => {
-    const occupiedRooms = day.rooms.filter((room) => room.status === "occupied").length;
+    const occupiedRooms = day.rooms.filter(
+      (room) => room.status === "occupied",
+    ).length;
     const status =
       occupiedRooms === 0
         ? "available"

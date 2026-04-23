@@ -1,20 +1,23 @@
 import {
   addDays,
+  differenceInCalendarDays,
   formatISO,
   parseISO,
+  startOfMonth,
   startOfToday,
 } from "date-fns";
+import { configToHouseConfig } from "@/lib/config/config";
+import exampleConfig from "../../../config/config.example";
 import { deriveDailyAvailability } from "./availability";
 import { parseEventTitle } from "./parser";
 import {
-  rawCalendarEventSchema,
   type HouseConfig,
   type RawCalendarEvent,
+  rawCalendarEventSchema,
 } from "./types";
-import exampleConfig from "../../../config/config.example";
-import { configToHouseConfig } from "@/lib/config/config";
 
-export const exampleHouseConfig: HouseConfig = configToHouseConfig(exampleConfig);
+export const exampleHouseConfig: HouseConfig =
+  configToHouseConfig(exampleConfig);
 
 function asDate(dateInput: Date | string): Date {
   return typeof dateInput === "string" ? parseISO(dateInput) : dateInput;
@@ -24,7 +27,9 @@ function isoDate(date: Date): string {
   return formatISO(date, { representation: "date" });
 }
 
-export function buildSampleRawEvents(anchorInput: Date | string): RawCalendarEvent[] {
+export function buildSampleRawEvents(
+  anchorInput: Date | string,
+): RawCalendarEvent[] {
   const anchor = asDate(anchorInput);
 
   return [
@@ -74,6 +79,7 @@ export function buildSampleRawEvents(anchorInput: Date | string): RawCalendarEve
 }
 
 const today = startOfToday();
+const calendarStart = startOfMonth(today);
 
 export const sampleRawEvents: RawCalendarEvent[] = buildSampleRawEvents(today);
 
@@ -85,6 +91,6 @@ export const sampleEventInterpretations = sampleRawEvents.map((raw) => ({
 export const sampleDerivedDays = deriveDailyAvailability(
   exampleHouseConfig,
   sampleRawEvents,
-  isoDate(today),
-  365,
+  isoDate(calendarStart),
+  differenceInCalendarDays(today, calendarStart) + 365,
 );

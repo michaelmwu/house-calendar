@@ -1,14 +1,13 @@
 import { spawn } from "node:child_process";
-import {
-  resolveWorktreePorts,
-  writeWorktreeEnvFiles,
-} from "./worktree-ports";
+import { resolveWorktreePorts, writeWorktreeEnvFiles } from "./worktree-ports";
 
 const bundle = resolveWorktreePorts({ worktreeRoot: process.cwd() });
 writeWorktreeEnvFiles(bundle);
 
 console.log(`Starting Next.js on http://127.0.0.1:${bundle.app.port}`);
-console.log(`Expected Postgres on postgresql://127.0.0.1:${bundle.postgres.port}`);
+console.log(
+  `Expected Postgres on postgresql://127.0.0.1:${bundle.postgres.port}`,
+);
 
 const child = spawn(
   process.execPath,

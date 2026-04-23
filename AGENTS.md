@@ -37,6 +37,8 @@ Use these commands instead of improvising:
 - `bun run db:start`
 - `bun run db:stop`
 - `bun dev`
+- `bun run lint`
+- `bun run format`
 - `bun run check`
 
 Do not replace the wrapped `typecheck` flow with raw `tsc --noEmit`. This repo uses `scripts/typecheck.ts` because of Next route type generation behavior.

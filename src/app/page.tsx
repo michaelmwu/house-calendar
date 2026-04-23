@@ -1,8 +1,5 @@
 import { Calendar } from "@/components/calendar";
-import {
-  exampleHouseConfig,
-  sampleDerivedDays,
-} from "@/lib/house/sample-data";
+import { exampleHouseConfig, sampleDerivedDays } from "@/lib/house/sample-data";
 
 const requestPolicy = exampleHouseConfig.sharePolicies.find(
   (policy) => policy.canRequest,

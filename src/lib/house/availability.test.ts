@@ -28,9 +28,9 @@ describe("deriveDailyAvailability", () => {
     );
 
     expect(days[0]?.status).toBe("partial");
-    expect(days[0]?.rooms.find((room) => room.id === "guest-room")?.status).toBe(
-      "occupied",
-    );
+    expect(
+      days[0]?.rooms.find((room) => room.id === "guest-room")?.status,
+    ).toBe("occupied");
     expect(days[0]?.rooms.find((room) => room.id === "my-room")?.status).toBe(
       "free",
     );

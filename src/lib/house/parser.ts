@@ -1,4 +1,8 @@
-import { houseConfigSchema, type HouseConfig, type ParsedCalendarEvent } from "./types";
+import {
+  type HouseConfig,
+  houseConfigSchema,
+  type ParsedCalendarEvent,
+} from "./types";
 
 const STAY_RE = /\bstay\b/;
 const OUT_RE = /\b(out|away)\b/;
@@ -23,7 +27,10 @@ function extractBracketHint(normalizedTitle: string): string | undefined {
   return match?.[1]?.trim();
 }
 
-function findPersonId(normalizedTitle: string, config: HouseConfig): string | undefined {
+function findPersonId(
+  normalizedTitle: string,
+  config: HouseConfig,
+): string | undefined {
   for (const person of config.people) {
     const candidates = [person.name, ...person.aliases].map((value) =>
       normalizeTitle(value),
@@ -31,7 +38,9 @@ function findPersonId(normalizedTitle: string, config: HouseConfig): string | un
 
     if (
       candidates.some((candidate) =>
-        normalizedTitle.match(new RegExp(`^${escapeRegExp(candidate)}\\b`, "i")),
+        normalizedTitle.match(
+          new RegExp(`^${escapeRegExp(candidate)}\\b`, "i"),
+        ),
       )
     ) {
       return person.id;

@@ -1,6 +1,6 @@
+import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { spawnSync } from "node:child_process";
 
 function run(command: string, args: string[]): void {
   const result = spawnSync(command, args, {

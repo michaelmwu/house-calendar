@@ -14,6 +14,7 @@ Private house occupancy, public availability, and lightweight stay requests.
 - Bun for package management, scripts, and tests
 - Postgres in Docker Compose for local persistence
 - TypeScript
+- Biome for linting and formatting
 - Tailwind CSS v4 for fast UI styling
 - Zod for config and domain validation
 - `date-fns` for date math
@@ -54,6 +55,12 @@ Run the current checks:
 
 ```bash
 bun run check
+```
+
+Format the repo:
+
+```bash
+bun run format
 ```
 
 The app port is worktree-specific, so use `bun run ports` to see the exact URL.
