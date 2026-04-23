@@ -55,13 +55,16 @@ export function deriveDailyAvailability(
         state: "unknown" as const,
       })),
   }));
+  const daysByDate = new Map(days.map((day) => [day.date, day] as const));
 
   for (const event of events) {
     const parsed = parseEventTitle(event.title, config);
     const eventDays = enumerateDays(event.startDate, event.endDate);
 
-    for (const day of days) {
-      if (!eventDays.includes(day.date)) {
+    for (const eventDay of eventDays) {
+      const day = daysByDate.get(eventDay);
+
+      if (!day) {
         continue;
       }
 

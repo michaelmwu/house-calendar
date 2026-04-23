@@ -4,9 +4,9 @@ Private house occupancy, public availability, and lightweight stay requests.
 
 ## Project Docs
 
-- [ARCHITECTURE.md](/Users/michaelwu/conductor/workspaces/house-calendar/washington-v5/ARCHITECTURE.md:1) for system design and intended build order
-- [AGENTS.md](/Users/michaelwu/conductor/workspaces/house-calendar/washington-v5/AGENTS.md:1) for project-specific agent instructions
-- [config/config.example.ts](/Users/michaelwu/conductor/workspaces/house-calendar/washington-v5/config/config.example.ts:1) for the checked-in config shape
+- [ARCHITECTURE.md](./ARCHITECTURE.md) for system design and intended build order
+- [AGENTS.md](./AGENTS.md) for project-specific agent instructions
+- [config/config.example.ts](./config/config.example.ts) for the checked-in config shape
 
 ## Stack
 
@@ -108,9 +108,9 @@ Right now, the example config is the checked-in source used by the demo app.
 
 The app runs on the host. Only Postgres is containerized.
 
-- [compose.yml](/Users/michaelwu/conductor/workspaces/house-calendar/washington-v5/compose.yml:1) starts a local `postgres:18-alpine`
-- [scripts/worktree-ports.ts](/Users/michaelwu/conductor/workspaces/house-calendar/washington-v5/scripts/worktree-ports.ts:1) derives unique app and database ports from the worktree path
-- [scripts/dev.ts](/Users/michaelwu/conductor/workspaces/house-calendar/washington-v5/scripts/dev.ts:1) writes `.env` and starts Next.js on the derived port
+- [compose.yml](./compose.yml) starts a local `postgres:18-alpine`
+- [scripts/worktree-ports.ts](./scripts/worktree-ports.ts) derives unique app and database ports from the worktree path
+- [scripts/dev.ts](./scripts/dev.ts) writes `.env` and starts Next.js on the derived port
 
 For local dev, the generated defaults are:
 

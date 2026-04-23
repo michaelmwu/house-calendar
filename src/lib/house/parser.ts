@@ -44,7 +44,7 @@ function findPersonId(normalizedTitle: string, config: HouseConfig): string | un
 function matchExplicitRule(
   normalizedTitle: string,
   config: HouseConfig,
-): ParsedCalendarEvent | undefined {
+): Omit<ParsedCalendarEvent, "rawTitle"> | undefined {
   for (const rule of config.rules) {
     const regex = new RegExp(rule.match, "i");
     const match = normalizedTitle.match(regex);
@@ -56,7 +56,6 @@ function matchExplicitRule(
     switch (rule.type) {
       case "stay.whole_house":
         return {
-          rawTitle: normalizedTitle,
           normalizedTitle,
           type: "stay",
           scope: "house",
@@ -65,7 +64,6 @@ function matchExplicitRule(
         };
       case "stay.room":
         return {
-          rawTitle: normalizedTitle,
           normalizedTitle,
           type: "stay",
           scope: "room",
@@ -75,7 +73,6 @@ function matchExplicitRule(
         };
       case "presence.in":
         return {
-          rawTitle: normalizedTitle,
           normalizedTitle,
           type: "presence",
           scope: "location",
@@ -87,7 +84,6 @@ function matchExplicitRule(
         };
       case "presence.out":
         return {
-          rawTitle: normalizedTitle,
           normalizedTitle,
           type: "presence",
           scope: "location",

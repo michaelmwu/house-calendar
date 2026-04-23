@@ -52,6 +52,10 @@ type CalendarMonth = {
 };
 
 function buildMonths(days: DailyAvailability[]): CalendarMonth[] {
+  if (days.length === 0) {
+    return [];
+  }
+
   const dayMap = new Map(days.map((day) => [day.date, day]));
   const firstDate = parseISO(days[0]!.date);
   const lastDate = parseISO(days[days.length - 1]!.date);
@@ -111,6 +115,11 @@ export function Calendar({
   requestEnabled,
 }: CalendarProps) {
   const [selectedDate, setSelectedDate] = useState(days[0]?.date ?? "");
+
+  if (days.length === 0) {
+    return null;
+  }
+
   const months = buildMonths(days);
   const selectedDay = days.find((day) => day.date === selectedDate) ?? days[0];
   const upcomingBusyDays = days

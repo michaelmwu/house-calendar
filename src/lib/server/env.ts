@@ -1,9 +1,16 @@
 import { z } from "zod";
 
+function optionalPositiveInt() {
+  return z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.coerce.number().int().positive().optional(),
+  );
+}
+
 const serverEnvSchema = z.object({
   DATABASE_URL: z.string().min(1).optional(),
-  PORT: z.coerce.number().int().positive().optional(),
-  POSTGRES_PORT: z.coerce.number().int().positive().optional(),
+  PORT: optionalPositiveInt(),
+  POSTGRES_PORT: optionalPositiveInt(),
 });
 
 export const serverEnv = serverEnvSchema.parse({
