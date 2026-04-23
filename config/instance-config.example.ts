@@ -2,12 +2,12 @@ import type { InstanceConfig } from "../src/lib/config/instance-config";
 
 const instanceConfig: InstanceConfig = {
   site: {
-    id: "washington",
-    houseName: "Washington House",
+    id: "tokyo",
+    houseName: "Tokyo House",
     ownerName: "Michael",
-    timezone: "America/Los_Angeles",
+    timezone: "Asia/Tokyo",
     branding: {
-      title: "Michael's Washington House",
+      title: "Michael's Tokyo House",
       description: "Private house occupancy, public availability, and trusted stay requests.",
       themeColor: "#2d8f6f",
     },
@@ -23,8 +23,8 @@ const instanceConfig: InstanceConfig = {
   rooms: [
     {
       id: "my-room",
-      name: "My room",
-      aliases: ["my room", "michael room"],
+      name: "Michael's room",
+      aliases: ["my room", "michael room", "michael's room"],
     },
     {
       id: "guest-room",
@@ -40,8 +40,8 @@ const instanceConfig: InstanceConfig = {
       visibility: "visible",
     },
     {
-      id: "ninad",
-      name: "Ninad",
+      id: "guest",
+      name: "Guest",
       aliases: [],
       visibility: "masked",
     },
@@ -82,7 +82,7 @@ const instanceConfig: InstanceConfig = {
       visibility: "private",
     },
     {
-      match: "^michael out of taiwan(?: \\((.+)\\))?$",
+      match: "^michael out of japan(?: \\((.+)\\))?$",
       type: "presence.out",
       actorId: "michael",
       visibility: "public",

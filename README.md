@@ -69,7 +69,7 @@ The current repo includes:
 
 - A demo landing page that shows the first product slice
 - A checked-in example instance config at `config/instance-config.example.ts`
-- A parser module for event titles like `Ninad stays (guest room)` and `Michael [TPE]`
+- A parser module for event titles like `Guest stays (guest room)` and `Michael [TPE]`
 - Availability derivation that treats end dates as departure dates
 - Postgres environment plumbing via `DATABASE_URL`
 - JSON demo endpoints at `/api/health` and `/api/demo`

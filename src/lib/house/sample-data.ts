@@ -31,21 +31,21 @@ export function buildSampleRawEvents(anchorInput: Date | string): RawCalendarEve
   return [
     rawCalendarEventSchema.parse({
       id: "evt-1",
-      title: "Ninad stays (whole house)",
+      title: "Guest stays (whole house)",
       startDate: isoDate(addDays(anchor, 4)),
       endDate: isoDate(addDays(anchor, 7)),
       allDay: true,
     }),
     rawCalendarEventSchema.parse({
       id: "evt-2",
-      title: "Michael out of Taiwan (Europe)",
+      title: "Michael out of Japan (Europe)",
       startDate: isoDate(anchor),
       endDate: isoDate(addDays(anchor, 18)),
       allDay: true,
     }),
     rawCalendarEventSchema.parse({
       id: "evt-3",
-      title: "Ninad stays (guest room)",
+      title: "Guest stays (guest room)",
       startDate: isoDate(addDays(anchor, 12)),
       endDate: isoDate(addDays(anchor, 15)),
       allDay: true,
@@ -59,14 +59,14 @@ export function buildSampleRawEvents(anchorInput: Date | string): RawCalendarEve
     }),
     rawCalendarEventSchema.parse({
       id: "evt-5",
-      title: "Ninad stays (my room)",
+      title: "Guest stays (my room)",
       startDate: isoDate(addDays(anchor, 39)),
       endDate: isoDate(addDays(anchor, 42)),
       allDay: true,
     }),
     rawCalendarEventSchema.parse({
       id: "evt-6",
-      title: "Ninad stays (guest room)",
+      title: "Guest stays (guest room)",
       startDate: isoDate(addDays(anchor, 75)),
       endDate: isoDate(addDays(anchor, 79)),
       allDay: true,

@@ -5,20 +5,20 @@ import { washingtonHouseConfig } from "./sample-data";
 describe("parseEventTitle", () => {
   test("parses whole-house stays from explicit rules", () => {
     const parsed = parseEventTitle(
-      "Ninad stays (whole house)",
+      "Guest stays (whole house)",
       washingtonHouseConfig,
     );
 
     expect(parsed.type).toBe("stay");
     expect(parsed.scope).toBe("house");
     expect(parsed.visibility).toBe("private");
-    expect(parsed.personId).toBe("ninad");
+    expect(parsed.personId).toBe("guest");
     expect(parsed.confidence).toBeGreaterThan(0.9);
   });
 
   test("parses public housemate travel", () => {
     const parsed = parseEventTitle(
-      "Michael out of Taiwan (Europe)",
+      "Michael out of Japan (Europe)",
       washingtonHouseConfig,
     );
 
