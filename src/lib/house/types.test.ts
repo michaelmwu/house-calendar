@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { exampleHouseConfig } from "./sample-data";
-import { houseConfigSchema } from "./types";
+import { houseConfigSchema, rawCalendarEventSchema } from "./types";
 
 describe("houseConfigSchema", () => {
   test("rejects invalid parser regex rules", () => {
@@ -44,5 +44,40 @@ describe("houseConfigSchema", () => {
     });
 
     expect(() => houseConfigSchema.parse(config)).toThrow(/Unknown actorId/);
+  });
+
+  test("rejects invalid timezone identifiers", () => {
+    const config = structuredClone(exampleHouseConfig);
+    config.timezone = "America/LA";
+
+    expect(() => houseConfigSchema.parse(config)).toThrow(
+      /Invalid IANA timezone identifier/,
+    );
+  });
+});
+
+describe("rawCalendarEventSchema", () => {
+  test("rejects malformed date strings", () => {
+    expect(() =>
+      rawCalendarEventSchema.parse({
+        id: "evt-invalid-start",
+        title: "Someone stays",
+        startDate: "not-a-date",
+        endDate: "2026-04-20",
+        allDay: true,
+      }),
+    ).toThrow(/Invalid ISO date or datetime/);
+  });
+
+  test("requires endDate to be after startDate", () => {
+    expect(() =>
+      rawCalendarEventSchema.parse({
+        id: "evt-invalid-range",
+        title: "Someone stays",
+        startDate: "2026-04-20",
+        endDate: "2026-04-20",
+        allDay: true,
+      }),
+    ).toThrow(/endDate must be after startDate/);
   });
 });

@@ -1,4 +1,6 @@
+import { compareAsc, isValid, parseISO } from "date-fns";
 import { z } from "zod";
+import { isValidTimeZone } from "./date";
 
 export const visibilitySchema = z.enum(["public", "private"]);
 export const personVisibilitySchema = z.enum(["visible", "masked"]);
@@ -79,7 +81,9 @@ export const houseConfigSchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    timezone: z.string(),
+    timezone: z.string().refine(isValidTimeZone, {
+      message: "Invalid IANA timezone identifier.",
+    }),
     rooms: z.array(roomSchema),
     people: z.array(personSchema),
     visibleHousemateIds: z.array(z.string()).default([]),
@@ -113,13 +117,27 @@ export const houseConfigSchema = z
     }
   });
 
-export const rawCalendarEventSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  startDate: z.string(),
-  endDate: z.string(),
-  allDay: z.boolean().default(true),
-});
+const isoDateTimeSchema = z
+  .string()
+  .refine((value) => isValid(parseISO(value)), "Invalid ISO date or datetime.");
+
+export const rawCalendarEventSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    startDate: isoDateTimeSchema,
+    endDate: isoDateTimeSchema,
+    allDay: z.boolean().default(true),
+  })
+  .superRefine((event, ctx) => {
+    if (compareAsc(parseISO(event.endDate), parseISO(event.startDate)) <= 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "endDate must be after startDate.",
+        path: ["endDate"],
+      });
+    }
+  });
 
 export const parsedCalendarEventTypeSchema = z.enum([
   "stay",

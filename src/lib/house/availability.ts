@@ -100,7 +100,8 @@ export function deriveDailyAvailability(
       if (
         parsed.type === "presence" &&
         parsed.personId &&
-        parsed.presenceState
+        parsed.presenceState &&
+        parsed.visibility === "public"
       ) {
         day.presence = day.presence.map((presence) =>
           presence.personId === parsed.personId

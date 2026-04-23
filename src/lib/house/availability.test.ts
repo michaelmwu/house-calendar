@@ -75,4 +75,35 @@ describe("deriveDailyAvailability", () => {
     expect(days[0]?.status).toBe("available");
     expect(days[0]?.rooms.every((room) => room.status === "free")).toBeTruthy();
   });
+
+  test("does not surface private presence rules in public presence output", () => {
+    const config = structuredClone(exampleHouseConfig);
+    config.rules.push({
+      type: "presence.out",
+      match: "^michael away for surgery$",
+      actorId: "michael",
+      visibility: "private",
+    });
+
+    const days = deriveDailyAvailability(
+      config,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-private-presence",
+          title: "Michael away for surgery",
+          startDate: "2026-04-19",
+          endDate: "2026-04-20",
+          allDay: true,
+        }),
+      ],
+      "2026-04-19",
+      1,
+    );
+
+    expect(
+      days[0]?.presence.find((person) => person.personId === "michael"),
+    ).toMatchObject({
+      state: "unknown",
+    });
+  });
 });
