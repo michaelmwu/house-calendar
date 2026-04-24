@@ -78,19 +78,26 @@ export function buildSampleRawEvents(
   ];
 }
 
-const today = parseISO(currentDateInTimeZone(exampleHouseConfig.timezone));
-const calendarStart = startOfMonth(today);
+export function buildSampleScenario(now = new Date()) {
+  const today = parseISO(
+    currentDateInTimeZone(exampleHouseConfig.timezone, now),
+  );
+  const calendarStart = startOfMonth(today);
+  const sampleRawEvents = buildSampleRawEvents(today);
+  const sampleEventInterpretations = sampleRawEvents.map((raw) => ({
+    raw,
+    parsed: parseEventTitle(raw.title, exampleHouseConfig),
+  }));
+  const sampleDerivedDays = deriveDailyAvailability(
+    exampleHouseConfig,
+    sampleRawEvents,
+    isoDate(calendarStart),
+    differenceInCalendarDays(today, calendarStart) + 365,
+  );
 
-export const sampleRawEvents: RawCalendarEvent[] = buildSampleRawEvents(today);
-
-export const sampleEventInterpretations = sampleRawEvents.map((raw) => ({
-  raw,
-  parsed: parseEventTitle(raw.title, exampleHouseConfig),
-}));
-
-export const sampleDerivedDays = deriveDailyAvailability(
-  exampleHouseConfig,
-  sampleRawEvents,
-  isoDate(calendarStart),
-  differenceInCalendarDays(today, calendarStart) + 365,
-);
+  return {
+    sampleDerivedDays,
+    sampleEventInterpretations,
+    sampleRawEvents,
+  };
+}

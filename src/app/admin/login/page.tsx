@@ -78,7 +78,6 @@ export default async function AdminLoginPage({
             <span className="mb-2 block text-sm font-medium">Admin email</span>
             <input
               autoComplete="email"
-              defaultValue={authState.adminEmail ?? ""}
               required
               name="email"
               type="email"
