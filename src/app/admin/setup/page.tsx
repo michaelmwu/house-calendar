@@ -45,8 +45,8 @@ export default async function AdminSetupPage({
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--muted)]">
             This deployment stays single-tenant. First-run setup creates one
-            admin user with a required email address and password, then switches
-            normal admin access over to password login.
+            admin user with a required email address and password. A one-time
+            bootstrap code must be generated from the CLI before setup can run.
           </p>
 
           <div className="mt-6 space-y-4">
@@ -56,12 +56,12 @@ export default async function AdminSetupPage({
               <ErrorBanner message="DATABASE_URL is required before admin setup can run." />
             ) : null}
 
-            {!authState.bootstrapConfigured ? (
-              <ErrorBanner message="BOOTSTRAP_PASSWORD must be set in the environment before setup can run." />
+            {!authState.bootstrapCodeReady ? (
+              <ErrorBanner message="No valid bootstrap code exists yet. Run `bun run admin:bootstrap-code` and use the printed code here." />
             ) : null}
           </div>
 
-          {authState.databaseConfigured && authState.bootstrapConfigured ? (
+          {authState.databaseConfigured && authState.bootstrapCodeReady ? (
             <form
               action="/admin/setup/submit"
               method="post"
@@ -69,11 +69,11 @@ export default async function AdminSetupPage({
             >
               <label className="block">
                 <span className="mb-2 block text-sm font-medium">
-                  Bootstrap password
+                  Bootstrap code
                 </span>
                 <input
                   required
-                  name="bootstrapPassword"
+                  name="bootstrapCode"
                   type="password"
                   className="w-full rounded-2xl border border-[color:var(--card-border)] bg-white/90 px-4 py-3 text-base outline-none transition focus:border-[color:var(--accent)]"
                 />
@@ -121,6 +121,7 @@ export default async function AdminSetupPage({
             What this does
           </p>
           <ul className="mt-5 space-y-4 text-sm leading-6 text-[var(--muted)]">
+            <li>Consumes a one-time setup code stored only by hash.</li>
             <li>Creates the single admin user for this deployment.</li>
             <li>Stores the admin email in Postgres, not in env.</li>
             <li>Starts normal password-based admin login after setup.</li>

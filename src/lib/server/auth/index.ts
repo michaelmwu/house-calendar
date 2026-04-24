@@ -1,9 +1,15 @@
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
+import type { TransactionSql } from "postgres";
 import { z } from "zod";
 import { getSql } from "../db";
 import { serverEnv } from "../env";
+import {
+  generateBootstrapCode,
+  getBootstrapCodeExpiry,
+  hashBootstrapCode,
+} from "./bootstrap-code";
 import { hashPassword, verifyPassword } from "./password";
 
 const ADMIN_SESSION_COOKIE = "house_calendar_admin_session";
@@ -11,7 +17,7 @@ const ADMIN_SESSION_DURATION_DAYS = 30;
 const ADMIN_PASSWORD_MIN_LENGTH = 10;
 
 const setupInputSchema = z.object({
-  bootstrapPassword: z.string().min(1),
+  bootstrapCode: z.string().min(1),
   email: z.string().trim().email(),
   password: z.string().min(ADMIN_PASSWORD_MIN_LENGTH),
 });
@@ -32,7 +38,7 @@ export type CurrentAdminSession = Omit<AdminSession, "token">;
 
 type AdminAuthState = {
   adminEmail: string | null;
-  bootstrapConfigured: boolean;
+  bootstrapCodeReady: boolean;
   databaseConfigured: boolean;
   initialized: boolean;
   session: CurrentAdminSession | null;
@@ -74,6 +80,11 @@ async function ensureAuthSchema(): Promise<void> {
       `;
 
       await sql`
+        create unique index if not exists admin_users_singleton_idx
+        on admin_users ((true))
+      `;
+
+      await sql`
         create table if not exists admin_sessions (
           id integer primary key generated always as identity,
           user_id integer not null references admin_users(id) on delete cascade,
@@ -88,7 +99,25 @@ async function ensureAuthSchema(): Promise<void> {
         create index if not exists admin_sessions_user_id_idx
         on admin_sessions (user_id)
       `;
-    })();
+
+      await sql`
+        create table if not exists admin_bootstrap_codes (
+          id integer primary key generated always as identity,
+          code_hash text not null unique,
+          expires_at timestamptz not null,
+          used_at timestamptz,
+          created_at timestamptz not null default now()
+        )
+      `;
+
+      await sql`
+        create index if not exists admin_bootstrap_codes_lookup_idx
+        on admin_bootstrap_codes (used_at, expires_at)
+      `;
+    })().catch((error) => {
+      schemaReadyPromise = undefined;
+      throw error;
+    });
   }
 
   await schemaReadyPromise;
@@ -114,12 +143,29 @@ async function getAdminEmail(): Promise<string | null> {
   return row?.email ?? null;
 }
 
+async function hasPendingBootstrapCode(): Promise<boolean> {
+  await ensureAuthSchema();
+  const sql = getSql();
+  const [row] = await sql<{ exists: boolean }[]>`
+    select exists(
+      select 1
+      from admin_bootstrap_codes
+      where used_at is null
+        and expires_at > now()
+    ) as exists
+  `;
+
+  return Boolean(row?.exists);
+}
+
 async function createAdminSession(
   userId: number,
   email: string,
+  sql:
+    | ReturnType<typeof getSql>
+    | TransactionSql<Record<string, never>> = getSql(),
 ): Promise<AdminSession> {
   await ensureAuthSchema();
-  const sql = getSql();
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(
     Date.now() + ADMIN_SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000,
@@ -235,12 +281,11 @@ export async function getCurrentAdminSession(): Promise<CurrentAdminSession | nu
 
 export async function getAdminAuthState(): Promise<AdminAuthState> {
   const databaseConfigured = Boolean(serverEnv.DATABASE_URL);
-  const bootstrapConfigured = Boolean(serverEnv.BOOTSTRAP_PASSWORD);
 
   if (!databaseConfigured) {
     return {
       adminEmail: null,
-      bootstrapConfigured,
+      bootstrapCodeReady: false,
       databaseConfigured,
       initialized: false,
       session: null,
@@ -252,7 +297,7 @@ export async function getAdminAuthState(): Promise<AdminAuthState> {
 
   return {
     adminEmail: initialized ? await getAdminEmail() : null,
-    bootstrapConfigured,
+    bootstrapCodeReady: initialized ? false : await hasPendingBootstrapCode(),
     databaseConfigured,
     initialized,
     session,
@@ -260,16 +305,12 @@ export async function getAdminAuthState(): Promise<AdminAuthState> {
 }
 
 export async function bootstrapAdmin(input: {
-  bootstrapPassword: string;
+  bootstrapCode: string;
   email: string;
   password: string;
 }): Promise<AuthActionResult> {
   if (!serverEnv.DATABASE_URL) {
     return { error: "DATABASE_URL is not configured.", ok: false };
-  }
-
-  if (!serverEnv.BOOTSTRAP_PASSWORD) {
-    return { error: "BOOTSTRAP_PASSWORD is not configured.", ok: false };
   }
 
   const parsed = setupInputSchema.safeParse(input);
@@ -284,29 +325,69 @@ export async function bootstrapAdmin(input: {
     };
   }
 
-  if (parsed.data.bootstrapPassword !== serverEnv.BOOTSTRAP_PASSWORD) {
-    return { error: "Bootstrap password is incorrect.", ok: false };
-  }
-
   await ensureAuthSchema();
-
-  if ((await getAdminCount()) > 0) {
-    return { error: "Admin setup is already complete.", ok: false };
-  }
-
   const sql = getSql();
   const email = normalizeEmail(parsed.data.email);
   const passwordHash = hashPassword(parsed.data.password);
-  const [user] = await sql<{ email: string; id: number }[]>`
-    insert into admin_users (email, password_hash)
-    values (${email}, ${passwordHash})
-    returning id, email
-  `;
+  const codeHash = hashBootstrapCode(parsed.data.bootstrapCode);
 
-  return {
-    ok: true,
-    session: await createAdminSession(user.id, user.email),
-  };
+  try {
+    const setupResult = await sql.begin(async (transactionSql) => {
+      const [consumedCode] = await transactionSql<{ id: number }[]>`
+        update admin_bootstrap_codes
+        set used_at = now()
+        where code_hash = ${codeHash}
+          and used_at is null
+          and expires_at > now()
+        returning id
+      `;
+
+      if (!consumedCode) {
+        throw new Error("Bootstrap code is invalid, expired, or already used.");
+      }
+
+      const [user] = await transactionSql<{ email: string; id: number }[]>`
+        insert into admin_users (email, password_hash)
+        values (${email}, ${passwordHash})
+        returning id, email
+      `;
+
+      const session = await createAdminSession(
+        user.id,
+        user.email,
+        transactionSql,
+      );
+
+      return { session };
+    });
+
+    return {
+      ok: true,
+      session: setupResult.session,
+    };
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "23505"
+    ) {
+      return { error: "Admin setup is already complete.", ok: false };
+    }
+
+    if (error instanceof Error) {
+      if (
+        error.message.includes("admin_users_singleton_idx") ||
+        error.message.includes("duplicate key value violates unique constraint")
+      ) {
+        return { error: "Admin setup is already complete.", ok: false };
+      }
+
+      return { error: error.message, ok: false };
+    }
+
+    return { error: "Admin setup failed.", ok: false };
+  }
 }
 
 export async function loginAdmin(input: {
@@ -347,5 +428,34 @@ export async function loginAdmin(input: {
   return {
     ok: true,
     session: await createAdminSession(user.id, user.email),
+  };
+}
+
+export async function createBootstrapCode(): Promise<{
+  code: string;
+  expiresAt: Date;
+}> {
+  if (!serverEnv.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not configured.");
+  }
+
+  await ensureAuthSchema();
+
+  if ((await getAdminCount()) > 0) {
+    throw new Error("Admin setup is already complete.");
+  }
+
+  const sql = getSql();
+  const code = generateBootstrapCode();
+  const expiresAt = getBootstrapCodeExpiry();
+
+  await sql`
+    insert into admin_bootstrap_codes (code_hash, expires_at)
+    values (${hashBootstrapCode(code)}, ${expiresAt.toISOString()})
+  `;
+
+  return {
+    code,
+    expiresAt,
   };
 }

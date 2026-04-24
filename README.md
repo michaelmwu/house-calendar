@@ -132,7 +132,7 @@ Override any of them by exporting env vars before running the scripts.
 
 The first real auth slice is now implemented.
 
-- `BOOTSTRAP_PASSWORD` is required for first-run setup
+- `bun run admin:bootstrap-code` generates a one-time setup code
 - `/admin/setup` creates the single admin account with email + password
 - `/admin/login` handles normal password login
 - Admin sessions are stored in Postgres
@@ -140,11 +140,11 @@ The first real auth slice is now implemented.
 
 Minimal local flow:
 
-1. Set `BOOTSTRAP_PASSWORD` in `.env`
-2. Run `bun run db:start`
+1. Run `bun run db:start`
+2. Run `bun run admin:bootstrap-code`
 3. Run `bun dev`
 4. Visit `/admin/setup`
-5. Create the owner email and password
+5. Enter the one-time bootstrap code and create the owner email + password
 
 ## Next Steps
 

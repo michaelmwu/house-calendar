@@ -8,7 +8,7 @@ function redirectWithParams(request: Request, params: Record<string, string>) {
     url.searchParams.set(key, value);
   }
 
-  return NextResponse.redirect(url);
+  return NextResponse.redirect(url, 303);
 }
 
 export async function POST(request: Request) {
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     return redirectWithParams(request, { error: result.error });
   }
 
-  const response = NextResponse.redirect(new URL("/admin", request.url));
+  const response = NextResponse.redirect(new URL("/admin", request.url), 303);
   setAdminSessionCookie(response, result.session);
   return response;
 }

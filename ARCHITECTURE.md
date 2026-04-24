@@ -121,7 +121,7 @@ This keeps frontend iteration fast while still providing a realistic persistence
 
 This repo now ships a deliberately small single-tenant auth model:
 
-- first-run bootstrap password in env
+- one-time bootstrap codes stored by hash in Postgres
 - required admin email during setup
 - password login for normal admin access
 - Postgres-backed sessions
@@ -271,7 +271,6 @@ This layer should grow to include:
 
 Required for first-run setup:
 
-- `BOOTSTRAP_PASSWORD`
 - `DATABASE_URL`
 
 Not required for the shipped auth flow:
@@ -286,11 +285,13 @@ Current auth tables:
 
 - `admin_users`
 - `admin_sessions`
+- `admin_bootstrap_codes`
 
 Current invariants:
 
 - the deployment is single-tenant
 - first setup creates the first and only admin user
+- bootstrap codes are short-lived and single-use
 - admin email lives in the database
 - password hashes are stored with scrypt
 - sessions are opaque random tokens stored server-side by hash
@@ -303,11 +304,12 @@ Use when the deployment has no admin user yet.
 
 Flow:
 
-1. require `BOOTSTRAP_PASSWORD`
-2. collect admin email + admin password
-3. create the admin user
-4. create the admin session
-5. redirect into `/admin`
+1. run `bun run admin:bootstrap-code`
+2. store only the code hash and expiry in Postgres
+3. collect bootstrap code + admin email + admin password
+4. atomically consume the code and create the only admin user
+5. create the admin session
+6. redirect into `/admin`
 
 #### `/admin/login`
 
@@ -331,7 +333,7 @@ Flow:
 
 What this auth slice intentionally does:
 
-- fails setup if bootstrap env is missing
+- requires a valid unused bootstrap code for first-run setup
 - requires email + password for the owner account
 - keeps sessions server-side
 - avoids leaking auth state into checked-in config

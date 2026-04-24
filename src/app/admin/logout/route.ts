@@ -8,7 +8,10 @@ export async function POST(request: Request) {
 
   await revokeAdminSession(sessionToken);
 
-  const response = NextResponse.redirect(new URL("/admin/login", request.url));
+  const response = NextResponse.redirect(
+    new URL("/admin/login", request.url),
+    303,
+  );
   clearAdminSessionCookie(response);
   return response;
 }

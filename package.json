@@ -13,6 +13,7 @@
     "db:start": "bun run ports:write && docker compose up -d postgres",
     "db:stop": "bun run ports:write && docker compose down",
     "db:logs": "bun run ports:write && docker compose logs -f postgres",
+    "admin:bootstrap-code": "bun run scripts/admin-bootstrap-code.ts",
     "test": "bun test",
     "typecheck": "bun run scripts/typecheck.ts",
     "check": "bun run typecheck && biome check . && bun run test"
