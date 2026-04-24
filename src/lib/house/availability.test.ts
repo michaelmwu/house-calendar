@@ -106,4 +106,59 @@ describe("deriveDailyAvailability", () => {
       state: "unknown",
     });
   });
+
+  test("presence state is deterministic regardless of input event order", () => {
+    const config = structuredClone(exampleHouseConfig);
+    config.rules.push({
+      type: "presence.out",
+      match: "^michael out of japan$",
+      actorId: "michael",
+      visibility: "public",
+    });
+    config.rules.push({
+      type: "presence.in",
+      match: "^michael in tokyo$",
+      actorId: "michael",
+      visibility: "public",
+    });
+
+    const outEvent = rawCalendarEventSchema.parse({
+      id: "evt-out",
+      title: "Michael out of Japan",
+      startDate: "2026-04-19",
+      endDate: "2026-04-22",
+      allDay: true,
+    });
+    const inEvent = rawCalendarEventSchema.parse({
+      id: "evt-in",
+      title: "Michael in Tokyo",
+      startDate: "2026-04-20",
+      endDate: "2026-04-21",
+      allDay: true,
+    });
+
+    const forward = deriveDailyAvailability(
+      config,
+      [outEvent, inEvent],
+      "2026-04-20",
+      1,
+    );
+    const reversed = deriveDailyAvailability(
+      config,
+      [inEvent, outEvent],
+      "2026-04-20",
+      1,
+    );
+
+    expect(
+      forward[0]?.presence.find((person) => person.personId === "michael"),
+    ).toMatchObject({
+      state: "in",
+    });
+    expect(
+      reversed[0]?.presence.find((person) => person.personId === "michael"),
+    ).toMatchObject({
+      state: "in",
+    });
+  });
 });

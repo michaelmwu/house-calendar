@@ -188,7 +188,7 @@ function fallbackPresenceParse(
       personId,
       location: locationMatch?.[1]?.trim() ?? bracketHint,
       presenceState: "out",
-      visibility: "public",
+      visibility: "private",
       confidence: bracketHint || locationMatch ? 0.9 : 0.82,
     };
   }
@@ -202,7 +202,7 @@ function fallbackPresenceParse(
       personId,
       location: bracketHint,
       presenceState: "in",
-      visibility: "public",
+      visibility: "private",
       confidence: 0.86,
     };
   }
@@ -218,7 +218,7 @@ function fallbackPresenceParse(
       personId,
       location: locationMatch?.[1]?.trim(),
       presenceState: "in",
-      visibility: "public",
+      visibility: "private",
       confidence: locationMatch ? 0.82 : 0.7,
     };
   }

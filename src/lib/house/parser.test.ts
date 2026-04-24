@@ -50,4 +50,15 @@ describe("parseEventTitle", () => {
     expect(parsed.location).toBe("tpe");
     expect(parsed.personId).toBe("michael");
   });
+
+  test("keeps heuristic presence parses private by default", () => {
+    const parsed = parseEventTitle(
+      "Michael away for surgery",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("presence");
+    expect(parsed.presenceState).toBe("out");
+    expect(parsed.visibility).toBe("private");
+  });
 });

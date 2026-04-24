@@ -35,9 +35,29 @@ export function deriveDailyAvailability(
   nights: number,
 ): DailyAvailability[] {
   const config = houseConfigSchema.parse(configInput);
-  const events = eventsInput.map((event) =>
-    rawCalendarEventSchema.parse(event),
-  );
+  const events = eventsInput
+    .map((event) => rawCalendarEventSchema.parse(event))
+    .sort((left, right) => {
+      const startDateComparison = left.startDate.localeCompare(right.startDate);
+
+      if (startDateComparison !== 0) {
+        return startDateComparison;
+      }
+
+      const endDateComparison = left.endDate.localeCompare(right.endDate);
+
+      if (endDateComparison !== 0) {
+        return endDateComparison;
+      }
+
+      const titleComparison = left.title.localeCompare(right.title);
+
+      if (titleComparison !== 0) {
+        return titleComparison;
+      }
+
+      return left.id.localeCompare(right.id);
+    });
 
   const endDateExclusive = formatISO(addDays(parseISO(startDate), nights), {
     representation: "date",
