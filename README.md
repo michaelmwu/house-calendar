@@ -57,6 +57,12 @@ Run the current checks:
 bun run check
 ```
 
+GitHub Actions runs:
+
+- `bun run lint`
+- `bun run typecheck`
+- `bun run test`
+
 Format the repo:
 
 ```bash
