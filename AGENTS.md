@@ -78,6 +78,7 @@ These are not optional stylistic preferences. They are product invariants.
 - All-day stay end dates are exclusive. Departure date is not a booked night.
 - Requests are proposals, not holds.
 - Parsing should be deterministic first. Do not lead with LLM parsing for core availability logic.
+- Admin auth is single-tenant and password-first right now. Do not reintroduce SMTP as a required dependency without updating docs and architecture.
 
 If you change any of these assumptions, update `ARCHITECTURE.md` and explain why.
 

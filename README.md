@@ -75,6 +75,7 @@ The app port is worktree-specific, so use `bun run ports` to see the exact URL.
 The current repo includes:
 
 - A demo landing page that shows the first product slice
+- A DB-backed single-tenant admin auth flow at `/admin`
 - A checked-in example config at `config/config.example.ts`
 - A parser module for event titles like `Someone stays (guest room)` and `Michael [TPE]`
 - Availability derivation that treats end dates as departure dates
@@ -127,11 +128,29 @@ For local dev, the generated defaults are:
 
 Override any of them by exporting env vars before running the scripts.
 
+## Admin Auth
+
+The first real auth slice is now implemented.
+
+- `BOOTSTRAP_PASSWORD` is required for first-run setup
+- `/admin/setup` creates the single admin account with email + password
+- `/admin/login` handles normal password login
+- Admin sessions are stored in Postgres
+- SMTP is not required for local dev or the default production flow
+
+Minimal local flow:
+
+1. Set `BOOTSTRAP_PASSWORD` in `.env`
+2. Run `bun run db:start`
+3. Run `bun dev`
+4. Visit `/admin/setup`
+5. Create the owner email and password
+
 ## Next Steps
 
 - Replace sample data with real ICS ingestion
 - Persist houses, parsing rules, and share policies
 - Add request submission and approval workflow
-- Add auth for admin access and signed viewer tokens
+- Add signed viewer tokens and optional email-based recovery flows
 
 That is enough to start building the real thing without pretending the domain model can wait.

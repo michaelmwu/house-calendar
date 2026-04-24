@@ -50,6 +50,7 @@ What is real today:
 - worktree-aware dev ports
 - validated config schemas
 - parser and availability logic
+- DB-backed single-tenant admin auth
 - docs and local runtime setup
 
 What is still scaffolding:
@@ -57,7 +58,7 @@ What is still scaffolding:
 - ICS ingestion
 - database schema and persistence layer
 - sync job
-- auth and share token implementation
+- share token implementation
 - request submission and approval workflow
 
 ## Architectural Principles
@@ -115,6 +116,25 @@ The current preferred local split is:
 - Docker Compose Postgres
 
 This keeps frontend iteration fast while still providing a realistic persistence service.
+
+### 5. Password-first admin auth
+
+This repo now ships a deliberately small single-tenant auth model:
+
+- first-run bootstrap password in env
+- required admin email during setup
+- password login for normal admin access
+- Postgres-backed sessions
+- optional future email flows, not required for v1
+
+This is a better fit for a self-hosted template than requiring SMTP on day one.
+
+Owner auth and viewer access are separate systems:
+
+- owner auth proves administrative identity
+- viewer access should use signed share links later
+
+Do not collapse those into one mechanism.
 
 ## System Components
 
@@ -235,7 +255,97 @@ This layer should grow to include:
 
 - database client setup
 - secret helpers
+- auth/session helpers
 - sync job runtime helpers
+
+## Admin Auth Model
+
+### Goals
+
+- work for a single owner with minimal setup
+- avoid SMTP as a v1 requirement
+- keep local development identical enough to production
+- store mutable auth state in Postgres, not checked-in config
+
+### Environment
+
+Required for first-run setup:
+
+- `BOOTSTRAP_PASSWORD`
+- `DATABASE_URL`
+
+Not required for the shipped auth flow:
+
+- SMTP
+- password reset provider
+- magic-link provider
+
+### Data model
+
+Current auth tables:
+
+- `admin_users`
+- `admin_sessions`
+
+Current invariants:
+
+- the deployment is single-tenant
+- first setup creates the first and only admin user
+- admin email lives in the database
+- password hashes are stored with scrypt
+- sessions are opaque random tokens stored server-side by hash
+
+### Request flows
+
+#### `/admin/setup`
+
+Use when the deployment has no admin user yet.
+
+Flow:
+
+1. require `BOOTSTRAP_PASSWORD`
+2. collect admin email + admin password
+3. create the admin user
+4. create the admin session
+5. redirect into `/admin`
+
+#### `/admin/login`
+
+Use after setup is complete.
+
+Flow:
+
+1. collect email + password
+2. verify against the single admin user
+3. create a session row in Postgres
+4. issue an httpOnly session cookie
+
+#### `/admin/logout`
+
+Flow:
+
+1. delete the current session row by token hash
+2. clear the session cookie
+
+### Security posture
+
+What this auth slice intentionally does:
+
+- fails setup if bootstrap env is missing
+- requires email + password for the owner account
+- keeps sessions server-side
+- avoids leaking auth state into checked-in config
+
+What it intentionally does not do yet:
+
+- password reset emails
+- magic-link login
+- multiple admins
+- 2FA
+- rate limiting
+- audit log UI
+
+Those can be layered on later without replacing the core model.
 
 ## 5. Local Tooling
 
