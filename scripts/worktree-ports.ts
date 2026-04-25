@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { resolve } from "node:path";
 
 export const DEFAULT_WORKTREE_DEV_BASE_PORT = 4321;
@@ -106,7 +107,7 @@ function resolvePort({
   pathKey: string;
   span: number;
   worktreeRoot: string;
-}): PortResolution {
+}): Omit<PortResolution, "port"> & { port?: number } {
   const explicitPort =
     parsePortLike(env[explicitPortEnvName], explicitPortEnvName) ??
     parsePortLike(
@@ -142,10 +143,71 @@ function resolvePort({
     basePort: resolvedBasePort,
     offset,
     pathKey,
-    port: resolvedBasePort + offset,
     span,
     usingExplicitPort: false,
   };
+}
+
+type PortProbeResult = "available" | "unavailable" | "unsupported";
+
+function canListenOnPort(port: number, host: string): Promise<PortProbeResult> {
+  return new Promise((resolvePortAvailability) => {
+    const server = createServer();
+
+    server.once("error", (error: NodeJS.ErrnoException) => {
+      resolvePortAvailability(
+        error.code === "EAFNOSUPPORT" ? "unsupported" : "unavailable",
+      );
+    });
+
+    server.once("listening", () => {
+      server.close(() => resolvePortAvailability("available"));
+    });
+
+    server.listen({ host, port });
+  });
+}
+
+async function isPortAvailable(port: number): Promise<boolean> {
+  const ipv6Result = await canListenOnPort(port, "::");
+
+  if (ipv6Result === "available") {
+    return true;
+  }
+
+  if (ipv6Result === "unavailable") {
+    return false;
+  }
+
+  return (await canListenOnPort(port, "127.0.0.1")) === "available";
+}
+
+async function resolveAvailablePort(
+  resolution: Omit<PortResolution, "port"> & { port?: number },
+): Promise<PortResolution> {
+  if (resolution.usingExplicitPort) {
+    return {
+      ...resolution,
+      port: resolution.port ?? resolution.basePort,
+    };
+  }
+
+  for (let attempt = 0; attempt < resolution.span; attempt += 1) {
+    const offset = (resolution.offset + attempt) % resolution.span;
+    const port = resolution.basePort + offset;
+
+    if (await isPortAvailable(port)) {
+      return {
+        ...resolution,
+        offset,
+        port,
+      };
+    }
+  }
+
+  throw new Error(
+    `No available port found from ${resolution.basePort} to ${resolution.basePort + resolution.span - 1}.`,
+  );
 }
 
 function buildDatabaseUrl(
@@ -158,13 +220,13 @@ function buildDatabaseUrl(
   return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@127.0.0.1:${postgresPort}/${encodeURIComponent(database)}`;
 }
 
-export function resolveWorktreePorts({
+export async function resolveWorktreePorts({
   env = process.env,
   worktreeRoot,
 }: {
   env?: NodeJS.ProcessEnv;
   worktreeRoot: string;
-}): WorktreePortBundle {
+}): Promise<WorktreePortBundle> {
   if (!worktreeRoot) {
     throw new Error("worktreeRoot is required to resolve worktree ports.");
   }
@@ -174,27 +236,32 @@ export function resolveWorktreePorts({
     DEFAULT_WORKTREE_PORT_SPAN;
   const pathKey = worktreePathKey(worktreeRoot);
 
-  const app = resolvePort({
-    basePortEnvName: WORKTREE_DEV_BASE_PORT_ENV,
-    defaultBasePort: DEFAULT_WORKTREE_DEV_BASE_PORT,
-    env,
-    explicitPortEnvName: WORKTREE_DEV_PORT_ENV,
-    fallbackPortEnvName: "PORT",
-    pathKey,
-    span,
-    worktreeRoot,
-  });
-
-  const postgres = resolvePort({
-    basePortEnvName: WORKTREE_POSTGRES_BASE_PORT_ENV,
-    defaultBasePort: DEFAULT_WORKTREE_POSTGRES_BASE_PORT,
-    env,
-    explicitPortEnvName: WORKTREE_POSTGRES_PORT_ENV,
-    fallbackPortEnvName: "POSTGRES_PORT",
-    pathKey,
-    span,
-    worktreeRoot,
-  });
+  const [app, postgres] = await Promise.all([
+    resolveAvailablePort(
+      resolvePort({
+        basePortEnvName: WORKTREE_DEV_BASE_PORT_ENV,
+        defaultBasePort: DEFAULT_WORKTREE_DEV_BASE_PORT,
+        env,
+        explicitPortEnvName: WORKTREE_DEV_PORT_ENV,
+        fallbackPortEnvName: "PORT",
+        pathKey,
+        span,
+        worktreeRoot,
+      }),
+    ),
+    resolveAvailablePort(
+      resolvePort({
+        basePortEnvName: WORKTREE_POSTGRES_BASE_PORT_ENV,
+        defaultBasePort: DEFAULT_WORKTREE_POSTGRES_BASE_PORT,
+        env,
+        explicitPortEnvName: WORKTREE_POSTGRES_PORT_ENV,
+        fallbackPortEnvName: "POSTGRES_PORT",
+        pathKey,
+        span,
+        worktreeRoot,
+      }),
+    ),
+  ]);
 
   return {
     app,
@@ -203,6 +270,10 @@ export function resolveWorktreePorts({
     projectName: worktreeComposeProjectName(worktreeRoot),
     worktreeRoot: resolve(worktreeRoot),
   };
+}
+
+function formatDotenvValue(value: string): string {
+  return JSON.stringify(value);
 }
 
 function buildEnvFileContents(
@@ -214,14 +285,14 @@ function buildEnvFileContents(
   const postgresDb = env.POSTGRES_DB || "house_calendar";
 
   return [
-    `COMPOSE_PROJECT_NAME=${bundle.projectName}`,
+    `COMPOSE_PROJECT_NAME=${formatDotenvValue(bundle.projectName)}`,
     `PORT=${bundle.app.port}`,
     `POSTGRES_PORT=${bundle.postgres.port}`,
-    `POSTGRES_DB=${postgresDb}`,
-    `POSTGRES_USER=${postgresUser}`,
-    `POSTGRES_PASSWORD=${postgresPassword}`,
+    `POSTGRES_DB=${formatDotenvValue(postgresDb)}`,
+    `POSTGRES_USER=${formatDotenvValue(postgresUser)}`,
+    `POSTGRES_PASSWORD=${formatDotenvValue(postgresPassword)}`,
     `WORKTREE_PORT_OFFSET=${bundle.app.offset}`,
-    `DATABASE_URL=${bundle.databaseUrl}`,
+    `DATABASE_URL=${formatDotenvValue(bundle.databaseUrl)}`,
     "",
   ].join("\n");
 }
@@ -251,7 +322,7 @@ function printSummary(bundle: WorktreePortBundle): void {
 
 if (import.meta.main) {
   const args = new Set(Bun.argv.slice(2));
-  const bundle = resolveWorktreePorts({ worktreeRoot: process.cwd() });
+  const bundle = await resolveWorktreePorts({ worktreeRoot: process.cwd() });
 
   if (args.has("--write")) {
     writeWorktreeEnvFiles(bundle);

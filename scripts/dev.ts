@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { resolveWorktreePorts, writeWorktreeEnvFiles } from "./worktree-ports";
 
-const bundle = resolveWorktreePorts({ worktreeRoot: process.cwd() });
+const bundle = await resolveWorktreePorts({ worktreeRoot: process.cwd() });
 writeWorktreeEnvFiles(bundle);
 
 console.log(`Starting Next.js on http://127.0.0.1:${bundle.app.port}`);
