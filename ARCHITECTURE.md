@@ -41,6 +41,7 @@ The repo currently contains a working prototype shell with:
 - Next.js App Router frontend
 - Bun-based local workflow
 - Postgres Docker Compose setup for local persistence plumbing
+- Tailwind CSS v4 plus shadcn/ui primitives
 - Drizzle ORM schema and typed query layer
 - deterministic parser and availability modules
 - sample instance config and sample event data
@@ -53,6 +54,7 @@ What is real today:
 - parser and availability logic
 - DB-backed single-tenant admin auth
 - Drizzle-backed auth table schema and queries
+- shadcn/ui installed for reusable controls and overlays
 - docs and local runtime setup
 
 What is still scaffolding:
@@ -145,6 +147,7 @@ Do not collapse those into one mechanism.
 Location:
 
 - `src/app/*`
+- `src/components/ui/*`
 
 Responsibilities:
 
@@ -152,6 +155,7 @@ Responsibilities:
 - expose server routes for health, demo data, and later real APIs
 - host admin UI later
 - load branding metadata
+- use shadcn/ui primitives for shared controls, forms, dialogs, popovers, tabs, and notifications
 
 Current files:
 
@@ -159,6 +163,7 @@ Current files:
 - `src/app/page.tsx`
 - `src/app/api/health/route.ts`
 - `src/app/api/demo/route.ts`
+- `src/components/ui/*`
 
 Expected future routes:
 
@@ -167,6 +172,8 @@ Expected future routes:
 - owner/admin auth endpoints
 - sync/admin diagnostics
 - share link management
+
+The domain calendar remains custom UI because its display semantics are product-specific. shadcn/ui should provide the reusable primitive layer around it: buttons, inputs, labels, cards, dialogs, popovers, selects, tabs, textareas, calendar primitives, and toasts.
 
 ## 2. Domain Logic
 

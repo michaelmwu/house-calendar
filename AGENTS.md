@@ -28,6 +28,7 @@ Do not assume this is a generic starter app. The domain model matters here.
 - The app runs on the host with Bun and Next.js.
 - Postgres runs in Docker Compose for local development.
 - Drizzle is the ORM and typed query layer for Postgres.
+- shadcn/ui is installed for shared React UI primitives.
 - Per-worktree ports are derived by `scripts/worktree-ports.ts`.
 - `bun dev` already handles writing `.env` and starting Next on the derived port.
 
@@ -96,6 +97,7 @@ Current boundaries:
 - `src/lib/server/*` for server-only runtime helpers
 - `src/lib/server/db-schema.ts` for Drizzle table definitions
 - `src/app/*` for UI and route handlers
+- `src/components/ui/*` for generated shadcn/ui primitives
 - `scripts/*` for local workflow and build/tooling glue
 
 Preferred direction:
@@ -103,6 +105,8 @@ Preferred direction:
 - parsing and availability remain framework-agnostic
 - persistence and sync layers can change without rewriting core rules
 - UI should consume derived state, not reimplement domain logic
+- Use shadcn/ui for shared controls and overlays, but keep product-specific surfaces like the availability calendar custom.
+- Keep app-specific CSS tokens under `--app-*` so they do not collide with shadcn semantic tokens.
 
 ## Next.js Rules
 

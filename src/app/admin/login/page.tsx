@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { getAdminAuthState } from "@/lib/server/auth";
 
 type SearchParams = Promise<{
@@ -22,8 +26,8 @@ function Notice({
 
   const classes =
     kind === "error"
-      ? "border-[color:var(--danger)]/25 bg-[color:var(--danger)]/8 text-[color:var(--danger)]"
-      : "border-[color:var(--accent)]/20 bg-[color:var(--accent)]/8 text-[var(--accent-strong)]";
+      ? "border-[color:var(--app-danger)]/25 bg-[color:var(--app-danger)]/8 text-[color:var(--app-danger)]"
+      : "border-[color:var(--app-accent)]/20 bg-[color:var(--app-accent)]/8 text-[var(--app-accent-strong)]";
 
   return (
     <p className={`rounded-2xl border px-4 py-3 text-sm ${classes}`}>
@@ -52,14 +56,14 @@ export default async function AdminLoginPage({
 
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-xl rounded-[2rem] border border-[color:var(--card-border)] bg-[color:var(--card)] p-6 shadow-[var(--shadow)] sm:p-8">
-        <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--muted)]">
+      <Card className="mx-auto max-w-xl rounded-[2rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-6 shadow-[var(--app-shadow)] ring-0 sm:p-8">
+        <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--app-muted)]">
           Admin login
         </p>
         <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em]">
           Sign in to manage the house
         </h1>
-        <p className="mt-4 text-base leading-7 text-[var(--muted)]">
+        <p className="mt-4 text-base leading-7 text-[var(--app-muted)]">
           This deployment uses a single owner account stored in Postgres. Email
           delivery is not required for normal local or production login.
         </p>
@@ -74,45 +78,51 @@ export default async function AdminLoginPage({
           method="post"
           className="mt-8 space-y-5"
         >
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">Admin email</span>
-            <input
+          <div>
+            <Label htmlFor="email" className="mb-2">
+              Admin email
+            </Label>
+            <Input
               autoComplete="email"
+              id="email"
               required
               name="email"
               type="email"
-              className="w-full rounded-2xl border border-[color:var(--card-border)] bg-white/90 px-4 py-3 text-base outline-none transition focus:border-[color:var(--accent)]"
+              className="h-auto rounded-2xl border-[color:var(--app-card-border)] bg-white/90 px-4 py-3 text-base focus-visible:border-[color:var(--app-accent)]"
             />
-          </label>
+          </div>
 
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">Password</span>
-            <input
+          <div>
+            <Label htmlFor="password" className="mb-2">
+              Password
+            </Label>
+            <Input
               autoComplete="current-password"
+              id="password"
               required
               name="password"
               type="password"
-              className="w-full rounded-2xl border border-[color:var(--card-border)] bg-white/90 px-4 py-3 text-base outline-none transition focus:border-[color:var(--accent)]"
+              className="h-auto rounded-2xl border-[color:var(--app-card-border)] bg-white/90 px-4 py-3 text-base focus-visible:border-[color:var(--app-accent)]"
             />
-          </label>
+          </div>
 
           <div className="flex items-center justify-between gap-4">
-            <button
+            <Button
               type="submit"
-              className="inline-flex rounded-full bg-[var(--foreground)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)]"
+              className="h-auto rounded-full bg-[var(--app-foreground)] px-5 py-3 text-sm font-semibold text-white hover:bg-[var(--app-accent-strong)]"
             >
               Sign in
-            </button>
+            </Button>
 
             <Link
               href="/admin/setup"
-              className="text-sm font-medium text-[var(--muted)] underline-offset-4 hover:underline"
+              className="text-sm font-medium text-[var(--app-muted)] underline-offset-4 hover:underline"
             >
               Setup page
             </Link>
           </div>
         </form>
-      </div>
+      </Card>
     </main>
   );
 }

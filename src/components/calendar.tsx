@@ -162,17 +162,17 @@ export function Calendar({
 
   return (
     <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <div className="rounded-[1.75rem] border border-[color:var(--card-border)] bg-[color:var(--card)] shadow-[var(--shadow)]">
-        <div className="flex items-center justify-between gap-4 border-b border-[color:var(--card-border)] px-5 py-4 sm:px-6">
+      <div className="rounded-[1.75rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] shadow-[var(--app-shadow)]">
+        <div className="flex items-center justify-between gap-4 border-b border-[color:var(--app-card-border)] px-5 py-4 sm:px-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">
               {houseName}
             </h1>
-            <p className="mt-1 font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--muted)]">
+            <p className="mt-1 font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--app-muted)]">
               Current month onward
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-[color:var(--card-border)] bg-white/70 px-3 py-1.5 text-xs font-medium text-[var(--muted)]">
+          <div className="flex items-center gap-2 rounded-full border border-[color:var(--app-card-border)] bg-white/70 px-3 py-1.5 text-xs font-medium text-[var(--app-muted)]">
             <span
               className={`h-2.5 w-2.5 rounded-full ${
                 requestEnabled ? "bg-emerald-500" : "bg-stone-400"
@@ -183,7 +183,7 @@ export function Calendar({
         </div>
 
         <div className="grid gap-4 p-4 sm:p-6">
-          <div className="grid grid-cols-7 gap-2 px-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.24em] text-[var(--muted)]">
+          <div className="grid grid-cols-7 gap-2 px-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.24em] text-[var(--app-muted)]">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label) => (
               <div key={label} className="pb-1 text-center">
                 {label}
@@ -195,8 +195,8 @@ export function Calendar({
             <div className="space-y-6">
               {months.map((month) => (
                 <section key={month.id}>
-                  <div className="sticky top-0 z-10 mb-3 rounded-xl border border-[color:var(--card-border)] bg-[color:var(--background)]/95 px-4 py-2 backdrop-blur">
-                    <h2 className="text-sm font-semibold tracking-[0.08em] text-[var(--muted)] uppercase">
+                  <div className="sticky top-0 z-10 mb-3 rounded-xl border border-[color:var(--app-card-border)] bg-[color:var(--app-background)]/95 px-4 py-2 backdrop-blur">
+                    <h2 className="text-sm font-semibold tracking-[0.08em] text-[var(--app-muted)] uppercase">
                       {month.label}
                     </h2>
                   </div>
@@ -233,7 +233,7 @@ export function Calendar({
                           onClick={() => setSelectedDate(day.date)}
                           className={`aspect-[0.95] rounded-2xl p-2 text-left transition ${
                             cellClasses
-                          } ${isSelected && !isPastDay ? "ring-2 ring-[color:var(--foreground)]" : ""}`}
+                          } ${isSelected && !isPastDay ? "ring-2 ring-[color:var(--app-foreground)]" : ""}`}
                         >
                           <div className="flex h-full flex-col justify-between">
                             <div className="flex items-start justify-between gap-2">
@@ -261,7 +261,7 @@ export function Calendar({
                                       room.status === "occupied"
                                         ? isPastDay
                                           ? "bg-stone-400"
-                                          : "bg-[color:var(--foreground)]/70"
+                                          : "bg-[color:var(--app-foreground)]/70"
                                         : roomBarClass
                                     }`}
                                   />
@@ -281,18 +281,18 @@ export function Calendar({
       </div>
 
       <aside className="space-y-4 lg:sticky lg:top-6 lg:h-fit">
-        <section className="rounded-[1.75rem] border border-[color:var(--card-border)] bg-[color:var(--card)] p-5 shadow-[var(--shadow)]">
-          <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--muted)]">
+        <section className="rounded-[1.75rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-5 shadow-[var(--app-shadow)]">
+          <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--app-muted)]">
             Selected date
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">
             {format(parseISO(selectedDay.date), "MMM d")}
           </h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">
+          <p className="mt-1 text-sm text-[var(--app-muted)]">
             {format(parseISO(selectedDay.date), "EEEE")}
           </p>
 
-          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[color:var(--card-border)] bg-white/80 px-3 py-1.5 text-sm font-medium capitalize">
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[color:var(--app-card-border)] bg-white/80 px-3 py-1.5 text-sm font-medium capitalize">
             <span
               className={`h-2.5 w-2.5 rounded-full ${
                 statusDotClasses[selectedDay.status]
@@ -301,7 +301,7 @@ export function Calendar({
             {selectedDay.status}
           </div>
 
-          <p className="mt-4 text-sm text-[var(--muted)]">
+          <p className="mt-4 text-sm text-[var(--app-muted)]">
             {formatRoomSummary(selectedDay)}
           </p>
 
@@ -309,10 +309,10 @@ export function Calendar({
             {selectedDay.rooms.map((room) => (
               <div
                 key={room.id}
-                className="flex items-center justify-between rounded-xl border border-[color:var(--card-border)] bg-white/75 px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm"
               >
                 <span>{room.name}</span>
-                <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--muted)]">
+                <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
                   {room.status}
                 </span>
               </div>
@@ -320,14 +320,14 @@ export function Calendar({
           </div>
 
           {selectedDay.presence.length > 0 ? (
-            <div className="mt-5 space-y-2 border-t border-[color:var(--card-border)] pt-4">
+            <div className="mt-5 space-y-2 border-t border-[color:var(--app-card-border)] pt-4">
               {selectedDay.presence.map((presence) => (
                 <div
                   key={presence.personId}
                   className="flex items-center justify-between text-sm"
                 >
                   <span>{presence.name}</span>
-                  <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--muted)]">
+                  <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
                     {presence.state}
                   </span>
                 </div>
@@ -336,8 +336,8 @@ export function Calendar({
           ) : null}
         </section>
 
-        <section className="rounded-[1.75rem] border border-[color:var(--card-border)] bg-[color:var(--card)] p-5 shadow-[var(--shadow)]">
-          <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--muted)]">
+        <section className="rounded-[1.75rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-5 shadow-[var(--app-shadow)]">
+          <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--app-muted)]">
             Legend
           </p>
           <div className="mt-4 grid gap-2">
@@ -359,8 +359,8 @@ export function Calendar({
           </div>
         </section>
 
-        <section className="rounded-[1.75rem] border border-[color:var(--card-border)] bg-[color:var(--card)] p-5 shadow-[var(--shadow)]">
-          <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--muted)]">
+        <section className="rounded-[1.75rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-5 shadow-[var(--app-shadow)]">
+          <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--app-muted)]">
             Upcoming busy days
           </p>
           <div className="mt-4 space-y-2">
@@ -369,10 +369,10 @@ export function Calendar({
                 key={day.date}
                 type="button"
                 onClick={() => setSelectedDate(day.date)}
-                className="flex w-full items-center justify-between rounded-xl border border-[color:var(--card-border)] bg-white/75 px-3 py-2 text-left text-sm"
+                className="flex w-full items-center justify-between rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-left text-sm"
               >
                 <span>{format(parseISO(day.date), "MMM d")}</span>
-                <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--muted)]">
+                <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
                   {day.status}
                 </span>
               </button>

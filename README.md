@@ -16,6 +16,7 @@ Private house occupancy, public availability, and lightweight stay requests.
 - TypeScript
 - Biome for linting and formatting
 - Tailwind CSS v4 for fast UI styling
+- shadcn/ui for accessible React UI primitives
 - Drizzle ORM for Postgres schema and typed queries
 - Zod for config and domain validation
 - `date-fns` for date math
@@ -94,6 +95,7 @@ The current repo includes:
 - Availability derivation that treats end dates as departure dates
 - Postgres environment plumbing via `DATABASE_URL`
 - Drizzle schema definitions for current auth tables
+- shadcn/ui setup with reusable local UI primitives in `src/components/ui`
 - JSON demo endpoints at `/api/health` and `/api/demo`
 - Bun tests for parser and availability logic
 
