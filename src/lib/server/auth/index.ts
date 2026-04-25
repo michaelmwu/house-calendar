@@ -1,9 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
+import { and, count, eq, gt, isNull, lte } from "drizzle-orm";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
-import type { TransactionSql } from "postgres";
 import { z } from "zod";
-import { getSql } from "../db";
+import { getDb, getSql } from "../db";
+import { adminBootstrapCodes, adminSessions, adminUsers } from "../db-schema";
 import { serverEnv } from "../env";
 import {
   generateBootstrapCode,
@@ -53,6 +54,9 @@ type AuthActionResult =
       ok: true;
       session: AdminSession;
     };
+
+type AuthDb = ReturnType<typeof getDb>;
+type AuthDbWriter = Pick<AuthDb, "insert">;
 
 let schemaReadyPromise: Promise<void> | undefined;
 
@@ -125,45 +129,45 @@ async function ensureAuthSchema(): Promise<void> {
 
 async function getAdminCount(): Promise<number> {
   await ensureAuthSchema();
-  const sql = getSql();
-  const [row] = await sql<
-    { count: string }[]
-  >`select count(*)::text as count from admin_users`;
+  const db = getDb();
+  const [row] = await db.select({ value: count() }).from(adminUsers);
 
-  return Number(row?.count ?? "0");
+  return row?.value ?? 0;
 }
 
 async function getAdminEmail(): Promise<string | null> {
   await ensureAuthSchema();
-  const sql = getSql();
-  const [row] = await sql<
-    { email: string }[]
-  >`select email from admin_users order by id asc limit 1`;
+  const db = getDb();
+  const [row] = await db
+    .select({ email: adminUsers.email })
+    .from(adminUsers)
+    .orderBy(adminUsers.id)
+    .limit(1);
 
   return row?.email ?? null;
 }
 
 async function hasPendingBootstrapCode(): Promise<boolean> {
   await ensureAuthSchema();
-  const sql = getSql();
-  const [row] = await sql<{ exists: boolean }[]>`
-    select exists(
-      select 1
-      from admin_bootstrap_codes
-      where used_at is null
-        and expires_at > now()
-    ) as exists
-  `;
+  const db = getDb();
+  const [row] = await db
+    .select({ id: adminBootstrapCodes.id })
+    .from(adminBootstrapCodes)
+    .where(
+      and(
+        isNull(adminBootstrapCodes.usedAt),
+        gt(adminBootstrapCodes.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
 
-  return Boolean(row?.exists);
+  return Boolean(row);
 }
 
 async function createAdminSession(
   userId: number,
   email: string,
-  sql:
-    | ReturnType<typeof getSql>
-    | TransactionSql<Record<string, never>> = getSql(),
+  db: AuthDbWriter = getDb(),
 ): Promise<AdminSession> {
   await ensureAuthSchema();
   const token = randomBytes(32).toString("base64url");
@@ -171,10 +175,11 @@ async function createAdminSession(
     Date.now() + ADMIN_SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000,
   );
 
-  await sql`
-    insert into admin_sessions (user_id, token_hash, expires_at)
-    values (${userId}, ${hashSessionToken(token)}, ${expiresAt.toISOString()})
-  `;
+  await db.insert(adminSessions).values({
+    expiresAt,
+    tokenHash: hashSessionToken(token),
+    userId,
+  });
 
   return {
     email,
@@ -219,12 +224,11 @@ export async function revokeAdminSession(
   }
 
   await ensureAuthSchema();
-  const sql = getSql();
+  const db = getDb();
 
-  await sql`
-    delete from admin_sessions
-    where token_hash = ${hashSessionToken(token)}
-  `;
+  await db
+    .delete(adminSessions)
+    .where(eq(adminSessions.tokenHash, hashSessionToken(token)));
 }
 
 export async function getCurrentAdminSession(): Promise<CurrentAdminSession | null> {
@@ -240,42 +244,41 @@ export async function getCurrentAdminSession(): Promise<CurrentAdminSession | nu
     return null;
   }
 
-  const sql = getSql();
+  const db = getDb();
 
-  await sql`delete from admin_sessions where expires_at <= now()`;
+  await db
+    .delete(adminSessions)
+    .where(lte(adminSessions.expiresAt, new Date()));
 
-  const [row] = await sql<
-    {
-      email: string;
-      expires_at: string;
-      user_id: number;
-    }[]
-  >`
-    select
-      admin_users.email,
-      admin_sessions.expires_at,
-      admin_sessions.user_id
-    from admin_sessions
-    join admin_users on admin_users.id = admin_sessions.user_id
-    where admin_sessions.token_hash = ${hashSessionToken(token)}
-      and admin_sessions.expires_at > now()
-    limit 1
-  `;
+  const [row] = await db
+    .select({
+      email: adminUsers.email,
+      expiresAt: adminSessions.expiresAt,
+      userId: adminSessions.userId,
+    })
+    .from(adminSessions)
+    .innerJoin(adminUsers, eq(adminUsers.id, adminSessions.userId))
+    .where(
+      and(
+        eq(adminSessions.tokenHash, hashSessionToken(token)),
+        gt(adminSessions.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
 
   if (!row) {
     return null;
   }
 
-  await sql`
-    update admin_sessions
-    set last_seen_at = now()
-    where token_hash = ${hashSessionToken(token)}
-  `;
+  await db
+    .update(adminSessions)
+    .set({ lastSeenAt: new Date() })
+    .where(eq(adminSessions.tokenHash, hashSessionToken(token)));
 
   return {
     email: row.email,
-    expiresAt: new Date(row.expires_at),
-    userId: row.user_id,
+    expiresAt: row.expiresAt,
+    userId: row.userId,
   };
 }
 
@@ -326,36 +329,41 @@ export async function bootstrapAdmin(input: {
   }
 
   await ensureAuthSchema();
-  const sql = getSql();
+  const db = getDb();
   const email = normalizeEmail(parsed.data.email);
   const passwordHash = hashPassword(parsed.data.password);
   const codeHash = hashBootstrapCode(parsed.data.bootstrapCode);
 
   try {
-    const setupResult = await sql.begin(async (transactionSql) => {
-      const [consumedCode] = await transactionSql<{ id: number }[]>`
-        update admin_bootstrap_codes
-        set used_at = now()
-        where code_hash = ${codeHash}
-          and used_at is null
-          and expires_at > now()
-        returning id
-      `;
+    const setupResult = await db.transaction(async (transactionDb) => {
+      const [consumedCode] = await transactionDb
+        .update(adminBootstrapCodes)
+        .set({ usedAt: new Date() })
+        .where(
+          and(
+            eq(adminBootstrapCodes.codeHash, codeHash),
+            isNull(adminBootstrapCodes.usedAt),
+            gt(adminBootstrapCodes.expiresAt, new Date()),
+          ),
+        )
+        .returning({ id: adminBootstrapCodes.id });
 
       if (!consumedCode) {
         throw new Error("Bootstrap code is invalid, expired, or already used.");
       }
 
-      const [user] = await transactionSql<{ email: string; id: number }[]>`
-        insert into admin_users (email, password_hash)
-        values (${email}, ${passwordHash})
-        returning id, email
-      `;
+      const [user] = await transactionDb
+        .insert(adminUsers)
+        .values({
+          email,
+          passwordHash,
+        })
+        .returning({ email: adminUsers.email, id: adminUsers.id });
 
       const session = await createAdminSession(
         user.id,
         user.email,
-        transactionSql,
+        transactionDb,
       );
 
       return { session };
@@ -405,23 +413,20 @@ export async function loginAdmin(input: {
   }
 
   await ensureAuthSchema();
-  const sql = getSql();
+  const db = getDb();
   const email = normalizeEmail(parsed.data.email);
 
-  const [user] = await sql<
-    {
-      email: string;
-      id: number;
-      password_hash: string;
-    }[]
-  >`
-    select id, email, password_hash
-    from admin_users
-    where email = ${email}
-    limit 1
-  `;
+  const [user] = await db
+    .select({
+      email: adminUsers.email,
+      id: adminUsers.id,
+      passwordHash: adminUsers.passwordHash,
+    })
+    .from(adminUsers)
+    .where(eq(adminUsers.email, email))
+    .limit(1);
 
-  if (!user || !verifyPassword(parsed.data.password, user.password_hash)) {
+  if (!user || !verifyPassword(parsed.data.password, user.passwordHash)) {
     return { error: "Email or password is incorrect.", ok: false };
   }
 
@@ -445,14 +450,14 @@ export async function createBootstrapCode(): Promise<{
     throw new Error("Admin setup is already complete.");
   }
 
-  const sql = getSql();
+  const db = getDb();
   const code = generateBootstrapCode();
   const expiresAt = getBootstrapCodeExpiry();
 
-  await sql`
-    insert into admin_bootstrap_codes (code_hash, expires_at)
-    values (${hashBootstrapCode(code)}, ${expiresAt.toISOString()})
-  `;
+  await db.insert(adminBootstrapCodes).values({
+    codeHash: hashBootstrapCode(code),
+    expiresAt,
+  });
 
   return {
     code,

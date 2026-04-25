@@ -16,6 +16,7 @@ Private house occupancy, public availability, and lightweight stay requests.
 - TypeScript
 - Biome for linting and formatting
 - Tailwind CSS v4 for fast UI styling
+- Drizzle ORM for Postgres schema and typed queries
 - Zod for config and domain validation
 - `date-fns` for date math
 
@@ -69,6 +70,12 @@ Format the repo:
 bun run format
 ```
 
+Generate a Drizzle migration from schema changes:
+
+```bash
+bun run db:generate
+```
+
 The app port is worktree-specific, so use `bun run ports` to see the exact URL.
 
 ## Current Scope
@@ -86,6 +93,7 @@ The current repo includes:
 - A parser module for event titles like `Someone stays (guest room)` and `Michael [TPE]`
 - Availability derivation that treats end dates as departure dates
 - Postgres environment plumbing via `DATABASE_URL`
+- Drizzle schema definitions for current auth tables
 - JSON demo endpoints at `/api/health` and `/api/demo`
 - Bun tests for parser and availability logic
 
@@ -125,6 +133,7 @@ The app runs on the host. Only Postgres is containerized.
 - [compose.yml](./compose.yml) starts a local `postgres:18-alpine`
 - [scripts/worktree-ports.ts](./scripts/worktree-ports.ts) derives unique app and database ports from the worktree path
 - [scripts/dev.ts](./scripts/dev.ts) writes `.env` and starts Next.js on the derived port
+- [src/lib/server/db-schema.ts](./src/lib/server/db-schema.ts) is the Drizzle schema source
 
 For local dev, the generated defaults are:
 

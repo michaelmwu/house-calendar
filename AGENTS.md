@@ -27,6 +27,7 @@ Do not assume this is a generic starter app. The domain model matters here.
 
 - The app runs on the host with Bun and Next.js.
 - Postgres runs in Docker Compose for local development.
+- Drizzle is the ORM and typed query layer for Postgres.
 - Per-worktree ports are derived by `scripts/worktree-ports.ts`.
 - `bun dev` already handles writing `.env` and starting Next on the derived port.
 
@@ -36,6 +37,8 @@ Use these commands instead of improvising:
 - `bun run ports:write`
 - `bun run db:start`
 - `bun run db:stop`
+- `bun run db:generate`
+- `bun run db:push`
 - `bun dev`
 - `bun run lint`
 - `bun run format`
@@ -91,6 +94,7 @@ Current boundaries:
 - `src/lib/house/*` for parsing, availability derivation, and sample domain data
 - `src/lib/config/*` for instance config schema and mapping
 - `src/lib/server/*` for server-only runtime helpers
+- `src/lib/server/db-schema.ts` for Drizzle table definitions
 - `src/app/*` for UI and route handlers
 - `scripts/*` for local workflow and build/tooling glue
 

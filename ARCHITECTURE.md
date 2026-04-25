@@ -41,6 +41,7 @@ The repo currently contains a working prototype shell with:
 - Next.js App Router frontend
 - Bun-based local workflow
 - Postgres Docker Compose setup for local persistence plumbing
+- Drizzle ORM schema and typed query layer
 - deterministic parser and availability modules
 - sample instance config and sample event data
 - demo APIs at `/api/health` and `/api/demo`
@@ -51,6 +52,7 @@ What is real today:
 - validated config schemas
 - parser and availability logic
 - DB-backed single-tenant admin auth
+- Drizzle-backed auth table schema and queries
 - docs and local runtime setup
 
 What is still scaffolding:
@@ -236,6 +238,8 @@ Examples:
 - booking requests
 - audit events
 
+Drizzle is the schema and query layer for Postgres. Current auth tables still self-initialize with explicit `create table if not exists` statements so fresh self-hosted installs work without a migration command. New persisted product tables should be added to `src/lib/server/db-schema.ts` first, with Drizzle migrations generated from that schema when runtime changes need durable migration history.
+
 ## 4. Server Runtime Helpers
 
 Location:
@@ -245,6 +249,8 @@ Location:
 Current file:
 
 - `src/lib/server/env.ts`
+- `src/lib/server/db.ts`
+- `src/lib/server/db-schema.ts`
 
 Responsibilities:
 

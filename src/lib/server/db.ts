@@ -1,9 +1,13 @@
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { schema } from "./db-schema";
 import { serverEnv } from "./env";
 
 type SqlClient = ReturnType<typeof postgres>;
+type DatabaseClient = PostgresJsDatabase<typeof schema>;
 
 declare global {
+  var __houseCalendarDb: DatabaseClient | undefined;
   var __houseCalendarSql: SqlClient | undefined;
 }
 
@@ -20,4 +24,12 @@ export function getSql(): SqlClient {
   }
 
   return globalThis.__houseCalendarSql;
+}
+
+export function getDb(): DatabaseClient {
+  if (!globalThis.__houseCalendarDb) {
+    globalThis.__houseCalendarDb = drizzle(getSql(), { schema });
+  }
+
+  return globalThis.__houseCalendarDb;
 }
