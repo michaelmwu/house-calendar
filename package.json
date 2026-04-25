@@ -1,0 +1,61 @@
+{
+  "name": "house-calendar",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "bun run scripts/dev.ts",
+    "build": "next build",
+    "start": "next start",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "ports": "bun run scripts/worktree-ports.ts",
+    "ports:write": "bun run scripts/worktree-ports.ts --write",
+    "db:start": "bun run ports:write && docker compose up -d postgres",
+    "db:stop": "bun run ports:write && docker compose down",
+    "db:logs": "bun run ports:write && docker compose logs -f postgres",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "admin:bootstrap-code": "bun run scripts/admin-bootstrap-code.ts",
+    "test": "bun test",
+    "typecheck": "bun run scripts/typecheck.ts",
+    "check": "bun run typecheck && biome check . && bun run test"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.11.0",
+    "next": "16.2.4",
+    "next-themes": "^0.4.6",
+    "postgres": "^3.4.9",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.4",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "19.2.4",
+    "shadcn": "^4.4.0",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.5.0",
+    "tw-animate-css": "^1.4.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.12",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "bun-types": "^1.3.13",
+    "drizzle-kit": "^0.31.10",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "ignoreScripts": [
+    "sharp",
+    "unrs-resolver"
+  ],
+  "trustedDependencies": [
+    "sharp",
+    "unrs-resolver"
+  ]
+}
