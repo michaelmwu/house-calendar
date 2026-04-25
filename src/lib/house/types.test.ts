@@ -46,6 +46,15 @@ describe("houseConfigSchema", () => {
     expect(() => houseConfigSchema.parse(config)).toThrow(/Unknown actorId/);
   });
 
+  test("rejects unknown visible housemate ids", () => {
+    const config = structuredClone(exampleHouseConfig);
+    config.visibleHousemateIds = ["michael", "ghost"];
+
+    expect(() => houseConfigSchema.parse(config)).toThrow(
+      /Unknown visibleHousemateId/,
+    );
+  });
+
   test("rejects invalid timezone identifiers", () => {
     const config = structuredClone(exampleHouseConfig);
     config.timezone = "America/LA";

@@ -95,6 +95,19 @@ export const houseConfigSchema = z
     const roomIds = new Set(config.rooms.map((room) => room.id));
     const personIds = new Set(config.people.map((person) => person.id));
 
+    for (const [
+      index,
+      visibleHousemateId,
+    ] of config.visibleHousemateIds.entries()) {
+      if (!personIds.has(visibleHousemateId)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Unknown visibleHousemateId "${visibleHousemateId}".`,
+          path: ["visibleHousemateIds", index],
+        });
+      }
+    }
+
     for (const [index, rule] of config.rules.entries()) {
       if (rule.type === "stay.room" && !roomIds.has(rule.roomId)) {
         ctx.addIssue({

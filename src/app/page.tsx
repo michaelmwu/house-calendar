@@ -4,6 +4,8 @@ import {
   exampleHouseConfig,
 } from "@/lib/house/sample-data";
 
+export const dynamic = "force-dynamic";
+
 const requestPolicy = exampleHouseConfig.sharePolicies.find(
   (policy) => policy.canRequest,
 );

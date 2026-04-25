@@ -76,6 +76,26 @@ describe("deriveDailyAvailability", () => {
     expect(days[0]?.rooms.every((room) => room.status === "free")).toBeTruthy();
   });
 
+  test("treats all-day datetime inputs as calendar dates", () => {
+    const days = deriveDailyAvailability(
+      exampleHouseConfig,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-all-day-datetime",
+          title: "Someone stays (guest room)",
+          startDate: "2026-04-19T00:00:00Z",
+          endDate: "2026-04-21T00:00:00Z",
+          allDay: true,
+        }),
+      ],
+      "2026-04-19",
+      2,
+    );
+
+    expect(days[0]?.status).toBe("partial");
+    expect(days[1]?.status).toBe("partial");
+  });
+
   test("does not surface private presence rules in public presence output", () => {
     const config = structuredClone(exampleHouseConfig);
     config.rules.push({

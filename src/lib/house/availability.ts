@@ -15,10 +15,20 @@ type WorkingDay = Omit<DailyAvailability, "status"> & {
   presence: DailyAvailability["presence"];
 };
 
+function asCalendarDate(value: string): string {
+  const match = value.match(/^\d{4}-\d{2}-\d{2}/);
+
+  if (!match) {
+    throw new Error(`Invalid calendar date input: ${value}`);
+  }
+
+  return match[0];
+}
+
 function enumerateDays(startDate: string, endDateExclusive: string): string[] {
   const days: string[] = [];
-  let cursor = parseISO(startDate);
-  const end = parseISO(endDateExclusive);
+  let cursor = parseISO(asCalendarDate(startDate));
+  const end = parseISO(asCalendarDate(endDateExclusive));
 
   while (isBefore(cursor, end)) {
     days.push(formatISO(cursor, { representation: "date" }));
