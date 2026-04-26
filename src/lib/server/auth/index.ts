@@ -16,6 +16,8 @@ import { hashPassword, verifyPassword } from "./password";
 const ADMIN_SESSION_COOKIE = "house_calendar_admin_session";
 const ADMIN_SESSION_DURATION_DAYS = 30;
 const ADMIN_PASSWORD_MIN_LENGTH = 10;
+const DEV_BOOTSTRAP_DISABLED_MESSAGE =
+  "Development admin bootstrap is disabled in production.";
 
 const setupInputSchema = z.object({
   bootstrapCode: z.string().min(1),
@@ -26,6 +28,10 @@ const setupInputSchema = z.object({
 const loginInputSchema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(1),
+});
+
+const directSetupInputSchema = loginInputSchema.extend({
+  password: z.string().min(ADMIN_PASSWORD_MIN_LENGTH),
 });
 
 export type AdminSession = {
@@ -55,6 +61,28 @@ type AuthActionResult =
       session: AdminSession;
     };
 
+type DirectBootstrapResult =
+  | {
+      error: string;
+      ok: false;
+    }
+  | {
+      created: boolean;
+      email: string;
+      ok: true;
+    };
+
+type AdminPasswordResetResult =
+  | {
+      error: string;
+      ok: false;
+    }
+  | {
+      email: string;
+      ok: true;
+      revokedSessionCount: number;
+    };
+
 type AuthDb = ReturnType<typeof getDb>;
 type AuthDbWriter = Pick<AuthDb, "insert">;
 
@@ -66,6 +94,52 @@ function normalizeEmail(email: string): string {
 
 function hashSessionToken(token: string): string {
   return createHash("sha256").update(token).digest("base64url");
+}
+
+function getErrorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+
+  if ("code" in error && typeof error.code === "string") {
+    return error.code;
+  }
+
+  if ("cause" in error) {
+    return getErrorCode(error.cause);
+  }
+
+  return undefined;
+}
+
+function getErrorMessages(error: unknown): string[] {
+  if (typeof error !== "object" || error === null) {
+    return [];
+  }
+
+  const messages: string[] = [];
+
+  if ("message" in error && typeof error.message === "string") {
+    messages.push(error.message);
+  }
+
+  if ("cause" in error) {
+    messages.push(...getErrorMessages(error.cause));
+  }
+
+  return messages;
+}
+
+function isAdminAlreadyCompleteError(error: unknown): boolean {
+  if (getErrorCode(error) === "23505") {
+    return true;
+  }
+
+  return getErrorMessages(error).some(
+    (message) =>
+      message.includes("admin_users_singleton_idx") ||
+      message.includes("duplicate key value violates unique constraint"),
+  );
 }
 
 async function ensureAuthSchema(): Promise<void> {
@@ -374,23 +448,11 @@ export async function bootstrapAdmin(input: {
       session: setupResult.session,
     };
   } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "23505"
-    ) {
+    if (isAdminAlreadyCompleteError(error)) {
       return { error: "Admin setup is already complete.", ok: false };
     }
 
     if (error instanceof Error) {
-      if (
-        error.message.includes("admin_users_singleton_idx") ||
-        error.message.includes("duplicate key value violates unique constraint")
-      ) {
-        return { error: "Admin setup is already complete.", ok: false };
-      }
-
       return { error: error.message, ok: false };
     }
 
@@ -463,4 +525,148 @@ export async function createBootstrapCode(): Promise<{
     code,
     expiresAt,
   };
+}
+
+export async function bootstrapAdminForDevelopment(input: {
+  email: string;
+  password: string;
+}): Promise<DirectBootstrapResult> {
+  if (process.env.NODE_ENV === "production") {
+    return {
+      error: DEV_BOOTSTRAP_DISABLED_MESSAGE,
+      ok: false,
+    };
+  }
+
+  if (!serverEnv.DATABASE_URL) {
+    return { error: "DATABASE_URL is not configured.", ok: false };
+  }
+
+  const parsed = directSetupInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      error:
+        parsed.error.flatten().formErrors[0] ??
+        parsed.error.flatten().fieldErrors.password?.[0] ??
+        "Enter a valid admin email and a password of at least 10 characters.",
+      ok: false,
+    };
+  }
+
+  await ensureAuthSchema();
+  const db = getDb();
+  const email = normalizeEmail(parsed.data.email);
+  const passwordHash = hashPassword(parsed.data.password);
+
+  try {
+    const [user] = await db
+      .insert(adminUsers)
+      .values({
+        email,
+        passwordHash,
+      })
+      .returning({ email: adminUsers.email });
+
+    return {
+      created: true,
+      email: user.email,
+      ok: true,
+    };
+  } catch (error) {
+    if (isAdminAlreadyCompleteError(error)) {
+      return {
+        created: false,
+        email: (await getAdminEmail()) ?? email,
+        ok: true,
+      };
+    }
+
+    if (error instanceof Error) {
+      return { error: error.message, ok: false };
+    }
+
+    return { error: "Development admin bootstrap failed.", ok: false };
+  }
+}
+
+export async function resetAdminPassword(input: {
+  email: string;
+  password: string;
+}): Promise<AdminPasswordResetResult> {
+  if (!serverEnv.DATABASE_URL) {
+    return { error: "DATABASE_URL is not configured.", ok: false };
+  }
+
+  const parsed = directSetupInputSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      error:
+        parsed.error.flatten().formErrors[0] ??
+        parsed.error.flatten().fieldErrors.password?.[0] ??
+        "Enter a valid admin email and a password of at least 10 characters.",
+      ok: false,
+    };
+  }
+
+  await ensureAuthSchema();
+  const db = getDb();
+  const email = normalizeEmail(parsed.data.email);
+  const passwordHash = hashPassword(parsed.data.password);
+
+  try {
+    const resetResult = await db.transaction(async (transactionDb) => {
+      const [user] = await transactionDb
+        .select({
+          email: adminUsers.email,
+          id: adminUsers.id,
+        })
+        .from(adminUsers)
+        .orderBy(adminUsers.id)
+        .limit(1);
+
+      if (!user) {
+        throw new Error(
+          "No admin user exists yet. Use the bootstrap flow first.",
+        );
+      }
+
+      if (user.email !== email) {
+        throw new Error(
+          "Provided email does not match the existing admin user.",
+        );
+      }
+
+      await transactionDb
+        .update(adminUsers)
+        .set({
+          passwordHash,
+          updatedAt: new Date(),
+        })
+        .where(eq(adminUsers.id, user.id));
+
+      const revokedSessions = await transactionDb
+        .delete(adminSessions)
+        .where(eq(adminSessions.userId, user.id))
+        .returning({ id: adminSessions.id });
+
+      return {
+        email: user.email,
+        revokedSessionCount: revokedSessions.length,
+      };
+    });
+
+    return {
+      email: resetResult.email,
+      ok: true,
+      revokedSessionCount: resetResult.revokedSessionCount,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      return { error: error.message, ok: false };
+    }
+
+    return { error: "Admin password reset failed.", ok: false };
+  }
 }

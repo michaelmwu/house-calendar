@@ -130,6 +130,24 @@ export function deriveDailyAvailability(
       if (
         parsed.type === "presence" &&
         parsed.personId &&
+        parsed.presenceState === "in"
+      ) {
+        const person = config.people.find(
+          (candidate) => candidate.id === parsed.personId,
+        );
+
+        if (person?.defaultRoomId) {
+          day.rooms = day.rooms.map((room) =>
+            room.id === person.defaultRoomId
+              ? { ...room, status: "occupied" }
+              : room,
+          );
+        }
+      }
+
+      if (
+        parsed.type === "presence" &&
+        parsed.personId &&
         parsed.presenceState &&
         parsed.visibility === "public"
       ) {

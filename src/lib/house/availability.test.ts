@@ -181,4 +181,67 @@ describe("deriveDailyAvailability", () => {
       state: "in",
     });
   });
+
+  test("presence.in occupies the known housemate default room", () => {
+    const config = structuredClone(exampleHouseConfig);
+    config.rules.push({
+      type: "presence.in",
+      match: "^michael in tokyo$",
+      actorId: "michael",
+      visibility: "private",
+    });
+
+    const days = deriveDailyAvailability(
+      config,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-michael-in",
+          title: "Michael in Tokyo",
+          startDate: "2026-04-19",
+          endDate: "2026-04-21",
+          allDay: true,
+        }),
+      ],
+      "2026-04-19",
+      2,
+    );
+
+    expect(days[0]?.status).toBe("partial");
+    expect(days[0]?.rooms.find((room) => room.id === "my-room")?.status).toBe(
+      "occupied",
+    );
+    expect(
+      days[0]?.rooms.find((room) => room.id === "guest-room")?.status,
+    ).toBe("free");
+  });
+
+  test("presence.out does not occupy the known housemate default room", () => {
+    const config = structuredClone(exampleHouseConfig);
+    config.rules.push({
+      type: "presence.out",
+      match: "^michael out of japan$",
+      actorId: "michael",
+      visibility: "private",
+    });
+
+    const days = deriveDailyAvailability(
+      config,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-michael-out",
+          title: "Michael out of Japan",
+          startDate: "2026-04-19",
+          endDate: "2026-04-21",
+          allDay: true,
+        }),
+      ],
+      "2026-04-19",
+      2,
+    );
+
+    expect(days[0]?.status).toBe("available");
+    expect(days[0]?.rooms.find((room) => room.id === "my-room")?.status).toBe(
+      "free",
+    );
+  });
 });

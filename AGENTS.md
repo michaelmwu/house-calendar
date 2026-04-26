@@ -19,7 +19,7 @@ Before making non-trivial changes, read:
 
 - `README.md` for developer workflow
 - `ARCHITECTURE.md` for system boundaries and future direction
-- `config/config.example.ts` for the current config shape
+- `config/config.example.json` for the current config shape
 
 Do not assume this is a generic starter app. The domain model matters here.
 
@@ -41,11 +41,19 @@ Use these commands instead of improvising:
 - `bun run db:generate`
 - `bun run db:push`
 - `bun dev`
+- `bun run admin:bootstrap-dev -- --email <email> --password '<password>'`
+- `bun run admin:reset-password -- --email <email> --password '<password>'`
 - `bun run lint`
 - `bun run format`
 - `bun run check`
 
 Do not replace the wrapped `typecheck` flow with raw `tsc --noEmit`. This repo uses `scripts/typecheck.ts` because of Next route type generation behavior.
+
+Current calendar sync behavior:
+
+- ICS imports are cached in-process with a short TTL
+- `/admin/sync` forces a refresh and resets that cache
+- cache state is not persisted yet, so restart clears it
 
 ## Config Rules
 
@@ -57,11 +65,11 @@ Treat configuration as three layers:
 
 Current checked-in example:
 
-- `config/config.example.ts`
+- `config/config.example.json`
 
 Planned private local variant:
 
-- `config/config.local.ts`
+- `config/config.json`
 
 Never commit:
 
@@ -70,7 +78,16 @@ Never commit:
 - mail credentials
 - private instance config files
 
+For private local development only, `config/config.json` may include a
+direct ICS `url` because the file is gitignored. Checked-in config should keep
+using env-managed URLs by variable name.
+
 If you add new secret-bearing fields, keep them in env or clearly marked sensitive DB columns.
+
+Known housemates may also define `defaultRoomId` in checked-in config. That is
+the room occupied by default when a `presence.in` event is parsed for them.
+
+Viewer page passwords belong in env, not checked-in config.
 
 ## Domain Rules
 

@@ -30,6 +30,21 @@ function extractBracketHint(normalizedTitle: string): string | undefined {
   return match?.[1]?.trim();
 }
 
+function extractGuestName(
+  rawTitle: string,
+  normalizedTitle: string,
+  personId?: string,
+): string | undefined {
+  if (personId || !STAY_RE.test(normalizedTitle)) {
+    return undefined;
+  }
+
+  const match = rawTitle.match(/^\s*(.+?)\s+stays?\b/i);
+  const guestName = match?.[1]?.trim();
+
+  return guestName ? guestName : undefined;
+}
+
 function findPersonId(
   normalizedTitle: string,
   config: HouseConfig,
@@ -47,6 +62,90 @@ function findPersonId(
       )
     ) {
       return person.id;
+    }
+  }
+
+  return undefined;
+}
+
+function getTemplatedPresenceVisibility(
+  personId: string,
+  config: HouseConfig,
+): "public" | "private" {
+  const person = config.people.find((candidate) => candidate.id === personId);
+
+  if (
+    person?.publicVisibility === "visible" &&
+    config.visibleHousemateIds.includes(personId)
+  ) {
+    return "public";
+  }
+
+  return "private";
+}
+
+function matchTemplatedPresenceRule(
+  normalizedTitle: string,
+  config: HouseConfig,
+): Omit<ParsedCalendarEvent, "rawTitle"> | undefined {
+  for (const person of config.people) {
+    const candidates = [person.name, ...person.aliases].map((value) =>
+      normalizeTitle(value),
+    );
+
+    for (const candidate of candidates) {
+      const escapedCandidate = escapeRegExp(candidate);
+      const visibility = getTemplatedPresenceVisibility(person.id, config);
+      const outMatch = normalizedTitle.match(
+        new RegExp(`^${escapedCandidate} out of japan(?: \\((.+)\\))?$`, "i"),
+      );
+
+      if (outMatch) {
+        return {
+          normalizedTitle,
+          type: "presence",
+          scope: "location",
+          personId: person.id,
+          presenceState: "out",
+          location: outMatch[1]?.trim(),
+          visibility,
+          confidence: 0.98,
+        };
+      }
+
+      const bracketInMatch = normalizedTitle.match(
+        new RegExp(`^${escapedCandidate} \\((.+)\\)$`, "i"),
+      );
+
+      if (bracketInMatch) {
+        return {
+          normalizedTitle,
+          type: "presence",
+          scope: "location",
+          personId: person.id,
+          presenceState: "in",
+          location: bracketInMatch[1]?.trim(),
+          visibility,
+          confidence: 0.98,
+        };
+      }
+
+      const textInMatch = normalizedTitle.match(
+        new RegExp(`^${escapedCandidate} in (.+)$`, "i"),
+      );
+
+      if (textInMatch) {
+        return {
+          normalizedTitle,
+          type: "presence",
+          scope: "location",
+          personId: person.id,
+          presenceState: "in",
+          location: textInMatch[1]?.trim(),
+          visibility,
+          confidence: 0.98,
+        };
+      }
     }
   }
 
@@ -115,6 +214,7 @@ function matchExplicitRule(
 }
 
 function fallbackStayParse(
+  rawTitle: string,
   normalizedTitle: string,
   config: HouseConfig,
   personId?: string,
@@ -127,11 +227,12 @@ function fallbackStayParse(
 
   if (hint && WHOLE_HOUSE_RE.test(hint)) {
     return {
-      rawTitle: normalizedTitle,
+      rawTitle,
       normalizedTitle,
       type: "stay",
       scope: "house",
       personId,
+      guestName: extractGuestName(rawTitle, normalizedTitle, personId),
       visibility: "private",
       confidence: personId ? 0.93 : 0.75,
     };
@@ -145,11 +246,12 @@ function fallbackStayParse(
 
   if (room) {
     return {
-      rawTitle: normalizedTitle,
+      rawTitle,
       normalizedTitle,
       type: "stay",
       scope: "room",
       personId,
+      guestName: extractGuestName(rawTitle, normalizedTitle, personId),
       roomId: room.id,
       visibility: "private",
       confidence: personId ? 0.91 : 0.74,
@@ -157,11 +259,12 @@ function fallbackStayParse(
   }
 
   return {
-    rawTitle: normalizedTitle,
+    rawTitle,
     normalizedTitle,
     type: "stay",
     scope: "unknown",
     personId,
+    guestName: extractGuestName(rawTitle, normalizedTitle, personId),
     visibility: "private",
     confidence: personId ? 0.68 : 0.52,
   };
@@ -234,6 +337,7 @@ export function parseEventTitle(
   const canonicalTitle = canonicalizeTitle(title);
   const normalizedTitle = normalizeTitle(title);
   const personId = findPersonId(normalizedTitle, config);
+  const guestName = extractGuestName(title, normalizedTitle, personId);
   const explicitMatch = matchExplicitRule(
     [...new Set([canonicalTitle, normalizedTitle])],
     normalizedTitle,
@@ -245,11 +349,29 @@ export function parseEventTitle(
       ...explicitMatch,
       rawTitle: title,
       normalizedTitle,
+      guestName:
+        explicitMatch.type === "stay"
+          ? (explicitMatch.guestName ?? guestName)
+          : undefined,
       personId: explicitMatch.personId ?? personId,
     };
   }
 
-  const stayMatch = fallbackStayParse(normalizedTitle, config, personId);
+  const templatedPresenceMatch = matchTemplatedPresenceRule(
+    normalizedTitle,
+    config,
+  );
+
+  if (templatedPresenceMatch) {
+    return {
+      ...templatedPresenceMatch,
+      rawTitle: title,
+      normalizedTitle,
+      personId: templatedPresenceMatch.personId ?? personId,
+    };
+  }
+
+  const stayMatch = fallbackStayParse(title, normalizedTitle, config, personId);
   if (stayMatch) {
     return {
       ...stayMatch,

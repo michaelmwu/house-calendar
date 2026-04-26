@@ -25,11 +25,36 @@ describe("parseEventTitle", () => {
     expect(parsed.type).toBe("stay");
     expect(parsed.scope).toBe("room");
     expect(parsed.roomId).toBe("guest-room");
+    expect(parsed.guestName).toBe("Someone");
     expect(parsed.visibility).toBe("private");
     expect(parsed.confidence).toBe(0.97);
   });
 
-  test("parses public housemate travel", () => {
+  test("captures guest names separately from known housemates", () => {
+    const parsed = parseEventTitle(
+      "Charlie stays [Guest Room]",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("stay");
+    expect(parsed.personId).toBeUndefined();
+    expect(parsed.guestName).toBe("Charlie");
+    expect(parsed.roomId).toBe("guest-room");
+  });
+
+  test("does not store a guest name for configured housemates", () => {
+    const parsed = parseEventTitle(
+      "Michael stays (guest room)",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("stay");
+    expect(parsed.personId).toBe("michael");
+    expect(parsed.guestName).toBeUndefined();
+    expect(parsed.roomId).toBe("guest-room");
+  });
+
+  test("parses templated public housemate travel", () => {
     const parsed = parseEventTitle(
       "Michael out of Japan (Europe)",
       exampleHouseConfig,
@@ -42,13 +67,24 @@ describe("parseEventTitle", () => {
     expect(parsed.visibility).toBe("public");
   });
 
-  test("supports bracket shorthand for presence", () => {
+  test("supports bracket shorthand for templated presence", () => {
     const parsed = parseEventTitle("Michael [TPE]", exampleHouseConfig);
 
     expect(parsed.type).toBe("presence");
     expect(parsed.presenceState).toBe("in");
     expect(parsed.location).toBe("tpe");
     expect(parsed.personId).toBe("michael");
+    expect(parsed.visibility).toBe("public");
+  });
+
+  test("supports text shorthand for templated presence", () => {
+    const parsed = parseEventTitle("Michael in Tokyo", exampleHouseConfig);
+
+    expect(parsed.type).toBe("presence");
+    expect(parsed.presenceState).toBe("in");
+    expect(parsed.location).toBe("tokyo");
+    expect(parsed.personId).toBe("michael");
+    expect(parsed.visibility).toBe("public");
   });
 
   test("keeps heuristic presence parses private by default", () => {

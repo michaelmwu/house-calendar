@@ -16,6 +16,8 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "admin:bootstrap-code": "bun run scripts/admin-bootstrap-code.ts",
+    "admin:bootstrap-dev": "bun run scripts/admin-bootstrap-dev.ts",
+    "admin:reset-password": "bun run scripts/admin-reset-password.ts",
     "test": "bun test",
     "typecheck": "bun run scripts/typecheck.ts",
     "check": "bun run typecheck && biome check . && bun run test"

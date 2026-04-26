@@ -19,6 +19,7 @@ export function getSql(): SqlClient {
   if (!globalThis.__houseCalendarSql) {
     globalThis.__houseCalendarSql = postgres(serverEnv.DATABASE_URL, {
       max: 1,
+      onnotice: () => {},
       prepare: false,
     });
   }
@@ -32,4 +33,15 @@ export function getDb(): DatabaseClient {
   }
 
   return globalThis.__houseCalendarDb;
+}
+
+export async function closeDb(): Promise<void> {
+  if (!globalThis.__houseCalendarSql) {
+    return;
+  }
+
+  const sql = globalThis.__houseCalendarSql;
+  globalThis.__houseCalendarDb = undefined;
+  globalThis.__houseCalendarSql = undefined;
+  await sql.end({ timeout: 0 });
 }

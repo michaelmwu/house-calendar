@@ -22,6 +22,7 @@ export const personSchema = z.object({
   id: z.string(),
   name: z.string(),
   aliases: z.array(z.string()).default([]),
+  defaultRoomId: z.string().optional(),
   publicVisibility: personVisibilitySchema,
 });
 
@@ -128,6 +129,16 @@ export const houseConfigSchema = z
         });
       }
     }
+
+    for (const [index, person] of config.people.entries()) {
+      if (person.defaultRoomId && !roomIds.has(person.defaultRoomId)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Unknown defaultRoomId "${person.defaultRoomId}" for person.`,
+          path: ["people", index, "defaultRoomId"],
+        });
+      }
+    }
   });
 
 const isoDateTimeSchema = z
@@ -172,6 +183,7 @@ export const parsedCalendarEventSchema = z.object({
   type: parsedCalendarEventTypeSchema,
   scope: parsedScopeSchema,
   personId: z.string().optional(),
+  guestName: z.string().optional(),
   roomId: z.string().optional(),
   location: z.string().optional(),
   presenceState: presenceStateSchema.optional(),

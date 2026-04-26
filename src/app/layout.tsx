@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { loadAppConfig } from "@/lib/server/app-config";
 import { cn } from "@/lib/utils";
-import exampleConfig from "../../config/config.example";
 
 const geist = Geist({
   subsets: ["latin"],
@@ -20,12 +20,16 @@ const monoFont = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
-export const metadata: Metadata = {
-  title: exampleConfig.site.branding.title,
-  description:
-    exampleConfig.site.branding.description ??
-    "Private house occupancy, public availability, and lightweight stay requests.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await loadAppConfig();
+
+  return {
+    title: config.site.branding.title,
+    description:
+      config.site.branding.description ??
+      "Private house occupancy, public availability, and lightweight stay requests.",
+  };
+}
 
 export default function RootLayout({
   children,

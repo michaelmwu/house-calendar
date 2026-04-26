@@ -6,7 +6,7 @@ Private house occupancy, public availability, and lightweight stay requests.
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) for system design and intended build order
 - [AGENTS.md](./AGENTS.md) for project-specific agent instructions
-- [config/config.example.ts](./config/config.example.ts) for the checked-in config shape
+- [config/config.example.json](./config/config.example.json) for the checked-in config shape
 
 ## Stack
 
@@ -77,6 +77,18 @@ Generate a Drizzle migration from schema changes:
 bun run db:generate
 ```
 
+Create a local-only admin account without using the setup page:
+
+```bash
+bun run admin:bootstrap-dev -- --email owner@example.com --password 'correct horse battery staple'
+```
+
+Reset the existing admin password and revoke all admin sessions:
+
+```bash
+bun run admin:reset-password -- --email owner@example.com --password 'new strong password'
+```
+
 The app port is worktree-specific, so use `bun run ports` to see the exact URL.
 
 ## Current Scope
@@ -89,10 +101,13 @@ The app port is worktree-specific, so use `bun run ports` to see the exact URL.
 The current repo includes:
 
 - A demo landing page that shows the first product slice
+- An optional shared-password gate for the public viewer page
 - A DB-backed single-tenant admin auth flow at `/admin`
-- A checked-in example config at `config/config.example.ts`
+- A checked-in example config at `config/config.example.json`
 - A parser module for event titles like `Someone stays (guest room)` and `Michael [TPE]`
 - Availability derivation that treats end dates as departure dates
+- ICS ingestion for all-day `VEVENT`s from configured calendar feeds
+- A short-lived in-memory ICS cache plus manual admin-triggered sync
 - Postgres environment plumbing via `DATABASE_URL`
 - Drizzle schema definitions for current auth tables
 - shadcn/ui setup with reusable local UI primitives in `src/components/ui`
@@ -111,9 +126,9 @@ The current repo includes:
 The current direction is a hybrid split:
 
 - Checked-in structural config:
-  `config/config.example.ts`
+  `config/config.example.json`
 - Secrets in env:
-  `ICS_URL_*`, `DATABASE_URL`, signing secrets later
+  `ICS_URL_*`, `DATABASE_URL`, `VIEWER_PASSWORD`, signing secrets later
 - Mutable state in Postgres:
   share links, requests, overrides, imported events
 
@@ -121,12 +136,29 @@ The app is not DB-driven for house config yet, but the shape is moving there.
 
 Recommended self-hosting flow:
 
-1. Copy `config/config.example.ts` to `config/config.local.ts`
-2. Change rooms, people, branding, and parsing rules
-3. Set secrets in env or Coolify
-4. Later, run a bootstrap/import command once the DB tables exist
+1. Copy the values from `config/config.example.json` into `config/config.json`
+2. Change rooms, people, branding, parsing rules, and `viewerAccess.mode` in the JSON override
+3. For each calendar, either:
+   - keep `envVar: "ICS_URL_1"` and set `ICS_URL_1` in env, or
+   - use `url: "https://..."` in `config/config.json` for private local-only dev
+4. If `viewerAccess.mode` is `"password"`, set `VIEWER_PASSWORD` in env
+5. Optionally set `ICS_SYNC_TTL_MINUTES` in env to change the default 15 minute cache TTL
+6. Run `bun dev` and the app will import all-day ICS events directly
 
-Right now, the example config is the checked-in source used by the demo app.
+`config/config.json` is gitignored and overrides `config/config.example.json` when present.
+
+Current sync behavior:
+
+- Page loads reuse cached ICS data for 15 minutes by default
+- `POST /admin/sync` forces an immediate refresh and resets the cache
+- The cache is in-memory, so restarting the app clears it
+- `people[].defaultRoomId` marks which room a known housemate occupies when a `presence.in` event is parsed
+
+Viewer page access:
+
+- `viewerAccess.mode: "public"` leaves the page open
+- `viewerAccess.mode: "password"` requires `VIEWER_PASSWORD` in env
+- successful unlock stores an httpOnly cookie so viewers do not need to re-enter the password on every request
 
 ## Local Database
 
@@ -150,6 +182,8 @@ Override any of them by exporting env vars before running the scripts.
 The first real auth slice is now implemented.
 
 - `bun run admin:bootstrap-code` generates a one-time setup code
+- `bun run admin:bootstrap-dev` is a local-only shortcut that creates the admin once and then leaves it unchanged
+- `bun run admin:reset-password` is an explicit operator recovery path
 - `/admin/setup` creates the single admin account with email + password
 - `/admin/login` handles normal password login
 - Admin sessions are stored in Postgres
@@ -162,6 +196,21 @@ Minimal local flow:
 3. Run `bun dev`
 4. Visit `/admin/setup`
 5. Enter the one-time bootstrap code and create the owner email + password
+
+Fast local-only setup:
+
+1. Run `bun run db:start`
+2. Run `bun run admin:bootstrap-dev -- --email owner@example.com --password 'correct horse battery staple'`
+3. Run `bun dev`
+4. Visit `/admin/login`
+
+`admin:bootstrap-dev` is disabled when `NODE_ENV=production` so the standard bootstrap-code flow remains the deploy path.
+
+Operator reset flow:
+
+1. Run `bun run admin:reset-password -- --email owner@example.com --password 'new strong password'`
+2. Existing admin sessions are revoked immediately
+3. Visit `/admin/login`
 
 ## Next Steps
 
