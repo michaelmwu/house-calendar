@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { configToHouseConfig } from "@/lib/config/config";
 import { currentDateInTimeZone } from "@/lib/house/date";
 import type { HouseConfig, ParsedCalendarEvent } from "@/lib/house/types";
-import { loadHouseConfig } from "@/lib/server/app-config";
+import { loadAppConfig } from "@/lib/server/app-config";
 import { getAdminAuthState } from "@/lib/server/auth";
 import { loadCalendarData } from "@/lib/server/calendar-data";
 
@@ -167,11 +168,12 @@ export default async function AdminPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const [{ error, message }, authState, houseConfig] = await Promise.all([
+  const [{ error, message }, authState, appConfig] = await Promise.all([
     searchParams,
     getAdminAuthState(),
-    loadHouseConfig(),
+    loadAppConfig(),
   ]);
+  const houseConfig = configToHouseConfig(appConfig);
 
   if (!authState.initialized) {
     redirect("/admin/setup");
@@ -181,7 +183,7 @@ export default async function AdminPage({
     redirect("/admin/login");
   }
 
-  const calendarData = await loadCalendarData();
+  const calendarData = await loadCalendarData({ appConfig, houseConfig });
   const today = currentDateInTimeZone(houseConfig.timezone);
   const interpretationRows = calendarData.eventInterpretations
     .filter((row) => row.raw.endDate >= today)

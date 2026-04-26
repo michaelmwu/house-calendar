@@ -67,6 +67,23 @@ describe("appConfigSchema", () => {
     expect(parsed.viewerAccess.mode).toBe("password");
   });
 
+  test("rejects calendar entries with both envVar and url", () => {
+    expect(() =>
+      appConfigSchema.parse({
+        ...baseConfig,
+        calendars: [
+          {
+            envVar: "ICS_URL_1",
+            id: "primary",
+            label: "Primary calendar",
+            provider: "ics",
+            url: "https://example.com/calendar.ics",
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
   test("rejects unknown default room ids for people", () => {
     expect(() =>
       appConfigSchema.parse({

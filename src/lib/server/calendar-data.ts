@@ -1,16 +1,14 @@
 import "server-only";
 
 import { differenceInCalendarDays, parseISO, startOfMonth } from "date-fns";
+import { type AppConfig, configToHouseConfig } from "@/lib/config/config";
 import { deriveDailyAvailability } from "@/lib/house/availability";
 import { currentDateInTimeZone, formatCalendarDate } from "@/lib/house/date";
 import { parseIcsCalendar } from "@/lib/house/ics";
 import { parseEventTitle } from "@/lib/house/parser";
 import { buildSampleScenario } from "@/lib/house/sample-data";
-import {
-  loadAppConfig,
-  loadHouseConfig,
-  resolveCalendarUrl,
-} from "./app-config";
+import type { HouseConfig, RawCalendarEvent } from "@/lib/house/types";
+import { loadAppConfig, resolveCalendarUrl } from "./app-config";
 import { serverEnv } from "./env";
 
 const DEFAULT_ICS_SYNC_TTL_MINUTES = 15;
@@ -43,7 +41,9 @@ export type CalendarDataResult = {
 };
 
 type LoadCalendarDataOptions = {
+  appConfig?: AppConfig;
   forceRefresh?: boolean;
+  houseConfig?: HouseConfig;
   now?: Date;
 };
 
@@ -71,35 +71,66 @@ function withCacheMetadata(
   };
 }
 
-async function fetchCalendarData(now: Date): Promise<CalendarDataBase> {
-  const appConfig = await loadAppConfig();
-  const houseConfig = await loadHouseConfig();
+async function fetchCalendarDataWithConfig({
+  appConfig,
+  houseConfig,
+  now,
+}: {
+  appConfig: AppConfig;
+  houseConfig: HouseConfig;
+  now: Date;
+}): Promise<CalendarDataBase> {
   const warnings: string[] = [];
   const today = parseISO(currentDateInTimeZone(houseConfig.timezone, now));
   const calendarStart = startOfMonth(today);
   const nights = differenceInCalendarDays(today, calendarStart) + 365;
-  const rawEvents = [];
+  const calendarResults = await Promise.all(
+    appConfig.calendars.map(async (calendar) => {
+      const url = resolveCalendarUrl(calendar);
 
-  for (const calendar of appConfig.calendars) {
-    const url = resolveCalendarUrl(calendar);
+      if (!url) {
+        return {
+          events: [] as RawCalendarEvent[],
+          warnings: [`Calendar "${calendar.label}" is missing an ICS URL.`],
+        };
+      }
 
-    if (!url) {
-      warnings.push(`Calendar "${calendar.label}" is missing an ICS URL.`);
-      continue;
-    }
+      try {
+        const response = await fetch(url, { cache: "no-store" });
 
-    const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) {
+          return {
+            events: [] as RawCalendarEvent[],
+            warnings: [
+              `Calendar "${calendar.label}" returned ${response.status}.`,
+            ],
+          };
+        }
 
-    if (!response.ok) {
-      warnings.push(
-        `Calendar "${calendar.label}" returned ${response.status}.`,
-      );
-      continue;
-    }
+        try {
+          return {
+            events: parseIcsCalendar(await response.text()),
+            warnings: [] as string[],
+          };
+        } catch {
+          return {
+            events: [] as RawCalendarEvent[],
+            warnings: [
+              `Calendar "${calendar.label}" returned invalid ICS data.`,
+            ],
+          };
+        }
+      } catch {
+        return {
+          events: [] as RawCalendarEvent[],
+          warnings: [`Calendar "${calendar.label}" could not be fetched.`],
+        };
+      }
+    }),
+  );
 
-    const parsedEvents = parseIcsCalendar(await response.text());
-    rawEvents.push(...parsedEvents);
-  }
+  const rawEvents = calendarResults.flatMap((result) => result.events);
+  warnings.push(...calendarResults.flatMap((result) => result.warnings));
 
   if (rawEvents.length === 0) {
     const sampleScenario = buildSampleScenario(now);
@@ -137,7 +168,9 @@ async function fetchCalendarData(now: Date): Promise<CalendarDataBase> {
 }
 
 export async function loadCalendarData({
+  appConfig,
   forceRefresh = false,
+  houseConfig,
   now = new Date(),
 }: LoadCalendarDataOptions = {}): Promise<CalendarDataResult> {
   const nowMs = now.getTime();
@@ -154,25 +187,43 @@ export async function loadCalendarData({
     return calendarDataInFlight;
   }
 
-  calendarDataInFlight = (async () => {
-    const fetchedAt = new Date();
+  const inFlightState: {
+    promise: Promise<CalendarDataResult> | null;
+  } = {
+    promise: null,
+  };
+
+  inFlightState.promise = (async () => {
+    const resolvedAppConfig = appConfig ?? (await loadAppConfig());
+    const resolvedHouseConfig =
+      houseConfig ?? configToHouseConfig(resolvedAppConfig);
     const result = withCacheMetadata(
-      await fetchCalendarData(fetchedAt),
-      fetchedAt,
+      await fetchCalendarDataWithConfig({
+        appConfig: resolvedAppConfig,
+        houseConfig: resolvedHouseConfig,
+        now,
+      }),
+      now,
     );
 
-    calendarDataCache = {
-      expiresAt: Date.parse(result.nextRefreshAt),
-      result,
-    };
+    if (calendarDataInFlight === inFlightState.promise) {
+      calendarDataCache = {
+        expiresAt: Date.parse(result.nextRefreshAt),
+        result,
+      };
+    }
 
     return result;
   })();
+  const inFlight = inFlightState.promise;
+  calendarDataInFlight = inFlight;
 
   try {
-    return await calendarDataInFlight;
+    return await inFlight;
   } finally {
-    calendarDataInFlight = null;
+    if (calendarDataInFlight === inFlight) {
+      calendarDataInFlight = null;
+    }
   }
 }
 

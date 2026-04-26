@@ -130,7 +130,10 @@ export default async function Home({
   }
 
   const houseConfig = configToHouseConfig(appConfig);
-  const { availability, source, warnings } = await loadCalendarData();
+  const { availability, source, warnings } = await loadCalendarData({
+    appConfig,
+    houseConfig,
+  });
   const requestPolicy = houseConfig.sharePolicies.find(
     (policy) => policy.canRequest,
   );

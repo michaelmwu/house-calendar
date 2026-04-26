@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { addDays, format, parseISO } from "date-fns";
 import type { DailyAvailability } from "@/lib/house/types";
-import { buildMonths } from "./calendar";
+import { buildDayAriaLabel, buildMonths } from "./calendar";
 
 function buildDay(date: string): DailyAvailability {
   return {
@@ -50,5 +50,21 @@ describe("buildMonths", () => {
 
     expect(months[0]?.cells.slice(-2).every((cell) => !cell.day)).toBe(true);
     expect(months[1]?.cells.slice(0, 5).every((cell) => !cell.day)).toBe(true);
+  });
+});
+
+describe("buildDayAriaLabel", () => {
+  test("includes the full date, status, and room summary", () => {
+    const label = buildDayAriaLabel({
+      date: "2026-05-01",
+      presence: [],
+      rooms: [
+        { id: "my-room", name: "My room", status: "free" },
+        { id: "guest-room", name: "Guest room", status: "occupied" },
+      ],
+      status: "partial",
+    });
+
+    expect(label).toBe("May 1, 2026. Partially occupied. 1 room occupied");
   });
 });

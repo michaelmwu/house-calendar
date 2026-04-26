@@ -38,13 +38,17 @@ const instanceCalendarSchema = z.object({
   provider: z.enum(["ics"]),
 });
 
-const instanceCalendarEnvSchema = instanceCalendarSchema.extend({
-  envVar: z.string(),
-});
+const instanceCalendarEnvSchema = instanceCalendarSchema
+  .extend({
+    envVar: z.string(),
+  })
+  .strict();
 
-const instanceCalendarUrlSchema = instanceCalendarSchema.extend({
-  url: z.url(),
-});
+const instanceCalendarUrlSchema = instanceCalendarSchema
+  .extend({
+    url: z.url(),
+  })
+  .strict();
 
 export const appCalendarSchema = z.union([
   instanceCalendarEnvSchema,

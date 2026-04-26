@@ -21,7 +21,8 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
-  const password = String(formData.get("password") ?? "");
+  const passwordValue = formData.get("password");
+  const password = typeof passwordValue === "string" ? passwordValue : "";
 
   if (!verifyViewerPassword(password)) {
     redirectUrl.searchParams.set("viewerAccessError", "invalid");

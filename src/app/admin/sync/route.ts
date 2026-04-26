@@ -31,11 +31,10 @@ export async function POST(request: Request) {
       sync: "ok",
     });
   } catch (error) {
+    console.error("Manual ICS sync failed.", error);
+
     return redirectToAdmin(request, {
-      error:
-        error instanceof Error
-          ? error.message
-          : "Manual ICS sync failed. Check the server logs.",
+      error: "Manual ICS sync failed. Check the server logs.",
       sync: "error",
     });
   }

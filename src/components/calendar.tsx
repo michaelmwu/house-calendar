@@ -169,6 +169,14 @@ function formatRoomSummary(day: DailyAvailability): string {
   return `${occupiedCount} room occupied`;
 }
 
+export function buildDayAriaLabel(day: DailyAvailability): string {
+  return [
+    format(parseISO(day.date), "MMMM d, yyyy"),
+    getDayStatusLabel(day),
+    formatRoomSummary(day),
+  ].join(". ");
+}
+
 function findNextWholeHouseFreeDate(
   days: DailyAvailability[],
   fromDate: string,
@@ -411,6 +419,7 @@ export function Calendar({
                       return (
                         <button
                           key={cell.id}
+                          aria-label={buildDayAriaLabel(day)}
                           type="button"
                           onClick={() => setSelectedDate(day.date)}
                           onFocus={(event) =>
