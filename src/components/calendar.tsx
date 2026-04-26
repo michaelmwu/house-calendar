@@ -4,14 +4,14 @@ import {
   addDays,
   addMonths,
   endOfMonth,
-  endOfWeek,
   format,
+  getDay,
   isAfter,
   parseISO,
   startOfMonth,
-  startOfWeek,
 } from "date-fns";
-import { useState } from "react";
+import type { FocusEvent, MouseEvent } from "react";
+import { useEffect, useState } from "react";
 import { currentDateInTimeZone } from "@/lib/house/date";
 import type { DailyAvailability } from "@/lib/house/types";
 
@@ -41,9 +41,8 @@ const statusDotClasses = {
 } as const;
 
 type CalendarCell = {
-  dateKey: string;
-  dateLabel: string;
-  isCurrentMonth: boolean;
+  id: string;
+  dateLabel?: string;
   day?: DailyAvailability;
 };
 
@@ -51,6 +50,11 @@ type CalendarMonth = {
   id: string;
   label: string;
   cells: CalendarCell[];
+};
+
+type PreviewPosition = {
+  x: number;
+  y: number;
 };
 
 function isPastDate(date: string, today: string): boolean {
@@ -68,7 +72,7 @@ function getDefaultSelectedDate(
   );
 }
 
-function buildMonths(days: DailyAvailability[]): CalendarMonth[] {
+export function buildMonths(days: DailyAvailability[]): CalendarMonth[] {
   if (days.length === 0) {
     return [];
   }
@@ -90,21 +94,38 @@ function buildMonths(days: DailyAvailability[]): CalendarMonth[] {
   while (!isAfter(cursor, lastDate)) {
     const monthStart = startOfMonth(cursor);
     const monthEnd = endOfMonth(cursor);
-    const gridStart = startOfWeek(monthStart);
-    const gridEnd = endOfWeek(monthEnd);
+    const visibleStart = firstDate > monthStart ? firstDate : monthStart;
+    const visibleEnd = lastDate < monthEnd ? lastDate : monthEnd;
     const cells: CalendarCell[] = [];
 
-    let dayCursor = gridStart;
+    for (
+      let blankIndex = 0;
+      blankIndex < getDay(visibleStart);
+      blankIndex += 1
+    ) {
+      cells.push({
+        id: `${format(monthStart, "yyyy-MM")}-leading-${blankIndex}`,
+      });
+    }
 
-    while (!isAfter(dayCursor, gridEnd)) {
+    let dayCursor = visibleStart;
+
+    while (!isAfter(dayCursor, visibleEnd)) {
       const dateKey = format(dayCursor, "yyyy-MM-dd");
       cells.push({
-        dateKey,
+        id: dateKey,
         dateLabel: format(dayCursor, "d"),
-        isCurrentMonth: dayCursor.getMonth() === monthStart.getMonth(),
         day: dayMap.get(dateKey),
       });
       dayCursor = addDays(dayCursor, 1);
+    }
+
+    const trailingBlankCount = 6 - getDay(visibleEnd);
+
+    for (let blankIndex = 0; blankIndex < trailingBlankCount; blankIndex += 1) {
+      cells.push({
+        id: `${format(monthStart, "yyyy-MM")}-trailing-${blankIndex}`,
+      });
     }
 
     months.push({
@@ -117,6 +138,19 @@ function buildMonths(days: DailyAvailability[]): CalendarMonth[] {
   }
 
   return months;
+}
+
+function getDayStatusLabel(day: DailyAvailability): string {
+  switch (day.status) {
+    case "available":
+      return "Available";
+    case "partial":
+      return "Partially occupied";
+    case "unavailable":
+      return "Whole house occupied";
+    case "unknown":
+      return "Needs interpretation";
+  }
 }
 
 function formatRoomSummary(day: DailyAvailability): string {
@@ -135,6 +169,86 @@ function formatRoomSummary(day: DailyAvailability): string {
   return `${occupiedCount} room occupied`;
 }
 
+export function buildDayAriaLabel(day: DailyAvailability): string {
+  return [
+    format(parseISO(day.date), "MMMM d, yyyy"),
+    getDayStatusLabel(day),
+    formatRoomSummary(day),
+  ].join(". ");
+}
+
+function findNextWholeHouseFreeDate(
+  days: DailyAvailability[],
+  fromDate: string,
+): string | null {
+  return (
+    days.find((day) => day.date >= fromDate && day.status === "available")
+      ?.date ?? null
+  );
+}
+
+function findNextRoomFreeDate(
+  days: DailyAvailability[],
+  roomId: string,
+  fromDate: string,
+): string | null {
+  return (
+    days.find((day) => {
+      if (day.date < fromDate || day.status === "unknown") {
+        return false;
+      }
+
+      return day.rooms.find((room) => room.id === roomId)?.status === "free";
+    })?.date ?? null
+  );
+}
+
+function formatNextFreeDateLabel(
+  nextFreeDate: string | null,
+  activeDate: string,
+): string {
+  if (!nextFreeDate) {
+    return "No confirmed free date in range";
+  }
+
+  if (nextFreeDate === activeDate) {
+    return "Free on this date";
+  }
+
+  return `Next free ${format(parseISO(nextFreeDate), "MMM d")}`;
+}
+
+function formatPanelDate(date: string): string {
+  return format(parseISO(date), "MMM d");
+}
+
+function getPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
+  if (typeof window === "undefined") {
+    return { x: x + 18, y: y + 18 };
+  }
+
+  const previewWidth = 260;
+  const previewHeight = 150;
+  const viewportPadding = 16;
+
+  return {
+    x: Math.min(x + 18, window.innerWidth - previewWidth - viewportPadding),
+    y: Math.min(y + 18, window.innerHeight - previewHeight - viewportPadding),
+  };
+}
+
+function parseSelectedDateHash(hash: string): string | null {
+  const value = hash.startsWith("#") ? hash.slice(1) : hash;
+
+  if (value.startsWith("date=")) {
+    const date = value.slice("date=".length);
+
+    return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+  }
+
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}
+
 export function Calendar({
   days,
   houseName,
@@ -142,9 +256,83 @@ export function Calendar({
   timezone,
 }: CalendarProps) {
   const today = currentDateInTimeZone(timezone);
-  const [selectedDate, setSelectedDate] = useState(() =>
-    getDefaultSelectedDate(days, today),
-  );
+  const defaultSelectedDate = getDefaultSelectedDate(days, today);
+  const [selectedDate, setSelectedDate] = useState(defaultSelectedDate);
+  const [previewDate, setPreviewDate] = useState<string | null>(null);
+  const [previewPosition, setPreviewPosition] =
+    useState<PreviewPosition | null>(null);
+
+  const clearPreview = () => {
+    setPreviewDate(null);
+    setPreviewPosition(null);
+  };
+
+  const updatePreviewFromMouse = (
+    dayDate: string,
+    event: MouseEvent<HTMLButtonElement>,
+  ) => {
+    setPreviewDate(dayDate);
+    setPreviewPosition(
+      getPreviewPosition({
+        x: event.clientX,
+        y: event.clientY,
+      }),
+    );
+  };
+
+  const updatePreviewFromFocus = (
+    dayDate: string,
+    event: FocusEvent<HTMLButtonElement>,
+  ) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+
+    setPreviewDate(dayDate);
+    setPreviewPosition(
+      getPreviewPosition({
+        x: rect.right,
+        y: rect.top,
+      }),
+    );
+  };
+
+  useEffect(() => {
+    setSelectedDate((currentSelectedDate) =>
+      days.some((day) => day.date === currentSelectedDate)
+        ? currentSelectedDate
+        : defaultSelectedDate,
+    );
+  }, [days, defaultSelectedDate]);
+
+  useEffect(() => {
+    const syncSelectedDateFromHash = () => {
+      const hashDate = parseSelectedDateHash(window.location.hash);
+
+      if (hashDate && days.some((day) => day.date === hashDate)) {
+        setSelectedDate(hashDate);
+        return;
+      }
+
+      if (!hashDate) {
+        setSelectedDate(defaultSelectedDate);
+      }
+    };
+
+    syncSelectedDateFromHash();
+    window.addEventListener("hashchange", syncSelectedDateFromHash);
+
+    return () =>
+      window.removeEventListener("hashchange", syncSelectedDateFromHash);
+  }, [days, defaultSelectedDate]);
+
+  useEffect(() => {
+    const nextHash = `date=${selectedDate}`;
+
+    if (window.location.hash.slice(1) === nextHash) {
+      return;
+    }
+
+    window.history.replaceState(null, "", `#${nextHash}`);
+  }, [selectedDate]);
 
   if (days.length === 0) {
     return null;
@@ -152,6 +340,9 @@ export function Calendar({
 
   const months = buildMonths(days);
   const selectedDay = days.find((day) => day.date === selectedDate) ?? days[0];
+  const previewDay = previewDate
+    ? (days.find((day) => day.date === previewDate) ?? null)
+    : null;
   const upcomingBusyDays = days
     .filter((day) => !isPastDate(day.date, today) && day.status !== "available")
     .slice(0, 6);
@@ -206,7 +397,7 @@ export function Calendar({
                       if (!cell.day) {
                         return (
                           <div
-                            key={cell.dateKey}
+                            key={cell.id}
                             className="aspect-[0.95] rounded-2xl bg-transparent"
                           />
                         );
@@ -216,7 +407,7 @@ export function Calendar({
                       const isSelected = selectedDay.date === day.date;
                       const isPastDay = isPastDate(day.date, today);
                       const cellClasses = isPastDay
-                        ? "cursor-default bg-stone-100 text-stone-400 ring-1 ring-stone-200"
+                        ? "cursor-pointer bg-stone-100 text-stone-500 ring-1 ring-stone-200 hover:bg-stone-200"
                         : statusClasses[day.status];
                       const roomBarClass = isPastDay
                         ? "bg-stone-300/80"
@@ -227,21 +418,28 @@ export function Calendar({
 
                       return (
                         <button
-                          key={cell.dateKey}
+                          key={cell.id}
+                          aria-label={buildDayAriaLabel(day)}
                           type="button"
-                          disabled={isPastDay}
                           onClick={() => setSelectedDate(day.date)}
+                          onFocus={(event) =>
+                            updatePreviewFromFocus(day.date, event)
+                          }
+                          onMouseEnter={(event) =>
+                            updatePreviewFromMouse(day.date, event)
+                          }
+                          onMouseMove={(event) =>
+                            updatePreviewFromMouse(day.date, event)
+                          }
+                          onMouseLeave={clearPreview}
+                          onBlur={clearPreview}
                           className={`aspect-[0.95] rounded-2xl p-2 text-left transition ${
                             cellClasses
-                          } ${isSelected && !isPastDay ? "ring-2 ring-[color:var(--app-foreground)]" : ""}`}
+                          } ${isSelected ? "ring-2 ring-[color:var(--app-foreground)]" : ""}`}
                         >
                           <div className="flex h-full flex-col justify-between">
                             <div className="flex items-start justify-between gap-2">
-                              <span
-                                className={`text-sm font-semibold ${
-                                  cell.isCurrentMonth ? "" : "opacity-45"
-                                }`}
-                              >
+                              <span className="text-sm font-semibold">
                                 {cell.dateLabel}
                               </span>
                               <span
@@ -280,13 +478,49 @@ export function Calendar({
         </div>
       </div>
 
+      {previewDay && previewDay.date !== selectedDay.date && previewPosition ? (
+        <div
+          className="pointer-events-none fixed z-50 w-[16rem] rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-white/95 p-4 shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur"
+          style={{
+            left: previewPosition.x,
+            top: previewPosition.y,
+          }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.28em] text-[var(--app-muted)]">
+                Preview date
+              </p>
+              <h3 className="mt-2 text-lg font-semibold tracking-[-0.04em]">
+                {formatPanelDate(previewDay.date)}
+              </h3>
+              <p className="text-xs text-[var(--app-muted)]">
+                {format(parseISO(previewDay.date), "EEEE")}
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--app-card-border)] bg-white/90 px-3 py-1 text-xs font-medium">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  statusDotClasses[previewDay.status]
+                }`}
+              />
+              {getDayStatusLabel(previewDay)}
+            </div>
+          </div>
+
+          <p className="mt-3 text-sm text-[var(--app-muted)]">
+            {formatRoomSummary(previewDay)}
+          </p>
+        </div>
+      ) : null}
+
       <aside className="space-y-4 lg:sticky lg:top-6 lg:h-fit">
         <section className="rounded-[1.75rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-5 shadow-[var(--app-shadow)]">
           <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--app-muted)]">
             Selected date
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">
-            {format(parseISO(selectedDay.date), "MMM d")}
+            {formatPanelDate(selectedDay.date)}
           </h2>
           <p className="mt-1 text-sm text-[var(--app-muted)]">
             {format(parseISO(selectedDay.date), "EEEE")}
@@ -305,16 +539,39 @@ export function Calendar({
             {formatRoomSummary(selectedDay)}
           </p>
 
+          <div className="mt-5 rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span>Whole house</span>
+              <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
+                {selectedDay.status}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-[var(--app-muted)]">
+              {formatNextFreeDateLabel(
+                findNextWholeHouseFreeDate(days, selectedDay.date),
+                selectedDay.date,
+              )}
+            </p>
+          </div>
+
           <div className="mt-5 space-y-2">
             {selectedDay.rooms.map((room) => (
               <div
                 key={room.id}
-                className="flex items-center justify-between rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm"
+                className="rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm"
               >
-                <span>{room.name}</span>
-                <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
-                  {room.status}
-                </span>
+                <div className="flex items-center justify-between gap-3">
+                  <span>{room.name}</span>
+                  <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
+                    {room.status}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-[var(--app-muted)]">
+                  {formatNextFreeDateLabel(
+                    findNextRoomFreeDate(days, room.id, selectedDay.date),
+                    selectedDay.date,
+                  )}
+                </p>
               </div>
             ))}
           </div>
@@ -369,6 +626,13 @@ export function Calendar({
                 key={day.date}
                 type="button"
                 onClick={() => setSelectedDate(day.date)}
+                onFocus={(event) => updatePreviewFromFocus(day.date, event)}
+                onMouseEnter={(event) =>
+                  updatePreviewFromMouse(day.date, event)
+                }
+                onMouseMove={(event) => updatePreviewFromMouse(day.date, event)}
+                onMouseLeave={clearPreview}
+                onBlur={clearPreview}
                 className="flex w-full items-center justify-between rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-left text-sm"
               >
                 <span>{format(parseISO(day.date), "MMM d")}</span>

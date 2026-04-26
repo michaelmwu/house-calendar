@@ -52,6 +52,8 @@ What is real today:
 - worktree-aware dev ports
 - validated config schemas
 - parser and availability logic
+- ICS import for all-day feeds
+- short-lived in-memory ICS cache with manual admin refresh
 - DB-backed single-tenant admin auth
 - Drizzle-backed auth table schema and queries
 - shadcn/ui installed for reusable controls and overlays
@@ -59,7 +61,6 @@ What is real today:
 
 What is still scaffolding:
 
-- ICS ingestion
 - database schema and persistence layer
 - sync job
 - share token implementation
@@ -130,6 +131,8 @@ This repo now ships a deliberately small single-tenant auth model:
 - password login for normal admin access
 - Postgres-backed sessions
 - optional future email flows, not required for v1
+- a dev-only CLI bootstrap helper for local setup, disabled in production
+- an explicit operator password reset command that revokes admin sessions
 
 This is a better fit for a self-hosted template than requiring SMTP on day one.
 
@@ -137,6 +140,7 @@ Owner auth and viewer access are separate systems:
 
 - owner auth proves administrative identity
 - viewer access should use signed share links later
+- a temporary shared page password is acceptable for low-friction self-hosted viewer gating
 
 Do not collapse those into one mechanism.
 
@@ -201,7 +205,7 @@ This layer should remain framework-agnostic. It should not depend on React, rout
 
 Location:
 
-- `config/config.example.ts`
+- `config/config.example.json`
 - `src/lib/config/config.ts`
 
 Responsibilities:
@@ -225,15 +229,21 @@ Examples:
 - parsing rules
 - branding
 - share policy defaults
+- viewer access mode
 
 #### Secrets, env only
 
 Examples:
 
 - `ICS_URL_*`
+- `VIEWER_PASSWORD`
 - signing secrets
 - mail credentials
 - privileged owner tokens
+
+For private local development only, `config/config.json` may inline an ICS
+`url` because that file is gitignored. Checked-in config should still reference
+env-managed URLs by variable name.
 
 #### Mutable runtime state, Postgres
 
@@ -258,6 +268,12 @@ Current file:
 - `src/lib/server/env.ts`
 - `src/lib/server/db.ts`
 - `src/lib/server/db-schema.ts`
+
+Current runtime behavior for calendar import:
+
+- ICS data is fetched on-demand and cached in-memory for a short TTL
+- admins can force a refresh through `/admin/sync`
+- cache state is process-local and is cleared on restart
 
 Responsibilities:
 
@@ -387,7 +403,7 @@ These scripts are part of the architecture. They are not incidental glue.
 
 ## A. Current Demo Flow
 
-1. `config/config.example.ts` defines the example house
+1. `config/config.example.json` defines the example house
 2. `configToHouseConfig()` maps it into internal house config
 3. sample raw events are parsed into typed events
 4. availability is derived from those parsed events
@@ -432,6 +448,7 @@ The database schema does not exist yet, but this is the intended shape.
 - `id`
 - `house_id`
 - `name`
+- `default_room_id`
 - visibility mode
 
 #### `calendar_sources`

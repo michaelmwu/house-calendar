@@ -1,3 +1,5 @@
+import { formatISO } from "date-fns";
+
 export function isValidTimeZone(timeZone: string): boolean {
   try {
     new Intl.DateTimeFormat("en-US", { timeZone });
@@ -29,4 +31,8 @@ export function currentDateInTimeZone(
   }
 
   return `${year}-${month}-${day}`;
+}
+
+export function formatCalendarDate(date: Date): string {
+  return formatISO(date, { representation: "date" });
 }

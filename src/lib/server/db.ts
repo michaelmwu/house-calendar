@@ -11,6 +11,10 @@ declare global {
   var __houseCalendarSql: SqlClient | undefined;
 }
 
+function shouldIgnorePostgresNotice(message: string): boolean {
+  return /already exists, skipping$/.test(message);
+}
+
 export function getSql(): SqlClient {
   if (!serverEnv.DATABASE_URL) {
     throw new Error("DATABASE_URL is required for server-side persistence.");
@@ -19,6 +23,15 @@ export function getSql(): SqlClient {
   if (!globalThis.__houseCalendarSql) {
     globalThis.__houseCalendarSql = postgres(serverEnv.DATABASE_URL, {
       max: 1,
+      onnotice: (notice) => {
+        if (shouldIgnorePostgresNotice(notice.message)) {
+          return;
+        }
+
+        console.warn(
+          `Postgres notice${notice.severity ? ` [${notice.severity}]` : ""}: ${notice.message}`,
+        );
+      },
       prepare: false,
     });
   }
@@ -32,4 +45,15 @@ export function getDb(): DatabaseClient {
   }
 
   return globalThis.__houseCalendarDb;
+}
+
+export async function closeDb(): Promise<void> {
+  if (!globalThis.__houseCalendarSql) {
+    return;
+  }
+
+  const sql = globalThis.__houseCalendarSql;
+  globalThis.__houseCalendarDb = undefined;
+  globalThis.__houseCalendarSql = undefined;
+  await sql.end({ timeout: 0 });
 }

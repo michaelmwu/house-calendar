@@ -1,11 +1,179 @@
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { configToHouseConfig } from "@/lib/config/config";
+import { currentDateInTimeZone } from "@/lib/house/date";
+import type { HouseConfig, ParsedCalendarEvent } from "@/lib/house/types";
+import { loadAppConfig } from "@/lib/server/app-config";
 import { getAdminAuthState } from "@/lib/server/auth";
+import { loadCalendarData } from "@/lib/server/calendar-data";
+
+type SearchParams = Promise<{
+  error?: string;
+  message?: string;
+  sync?: string;
+}>;
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage() {
-  const authState = await getAdminAuthState();
+function Notice({
+  kind,
+  message,
+}: {
+  kind: "error" | "info";
+  message?: string;
+}) {
+  if (!message) {
+    return null;
+  }
+
+  const classes =
+    kind === "error"
+      ? "border-[color:var(--app-danger)]/25 bg-[color:var(--app-danger)]/8 text-[color:var(--app-danger)]"
+      : "border-[color:var(--app-accent)]/20 bg-[color:var(--app-accent)]/8 text-[var(--app-accent-strong)]";
+
+  return (
+    <p className={`rounded-2xl border px-4 py-3 text-sm ${classes}`}>
+      {message}
+    </p>
+  );
+}
+
+function formatTimestamp(timestamp: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(timestamp));
+}
+
+function formatEventRange(startDate: string, endDate: string): string {
+  return `${startDate} to ${endDate}`;
+}
+
+function formatConfidence(confidence: number): string {
+  return `${Math.round(confidence * 100)}% confidence`;
+}
+
+function describeInterpretation(
+  parsed: ParsedCalendarEvent,
+  houseConfig: HouseConfig,
+): string {
+  if (parsed.type === "unknown") {
+    return "No deterministic rule matched this title.";
+  }
+
+  if (parsed.type === "stay") {
+    const guestPrefix = parsed.guestName ? `${parsed.guestName}: ` : "";
+
+    if (parsed.scope === "house") {
+      return `${guestPrefix}Whole-house stay`;
+    }
+
+    if (parsed.scope === "room" && parsed.roomId) {
+      const room = houseConfig.rooms.find(
+        (candidate) => candidate.id === parsed.roomId,
+      );
+
+      return `${guestPrefix}Room stay: ${room?.name ?? parsed.roomId}`;
+    }
+
+    return `${guestPrefix}Stay with unknown scope`;
+  }
+
+  const person = parsed.personId
+    ? houseConfig.people.find((candidate) => candidate.id === parsed.personId)
+    : null;
+  const personLabel = person?.name ?? parsed.personId ?? "Unknown person";
+  const stateLabel =
+    parsed.presenceState === "in"
+      ? "In"
+      : parsed.presenceState === "out"
+        ? "Out"
+        : "Unknown";
+
+  if (parsed.location) {
+    return `${personLabel}: ${stateLabel} (${parsed.location})`;
+  }
+
+  return `${personLabel}: ${stateLabel}`;
+}
+
+function buildParsedFieldRows(
+  parsed: ParsedCalendarEvent,
+  houseConfig: HouseConfig,
+): Array<{ label: string; value: string }> {
+  if (parsed.type === "stay") {
+    const room = parsed.roomId
+      ? houseConfig.rooms.find((candidate) => candidate.id === parsed.roomId)
+      : null;
+    const housemate = parsed.personId
+      ? houseConfig.people.find((candidate) => candidate.id === parsed.personId)
+      : null;
+
+    const rows: Array<{ label: string; value: string }> = [];
+
+    if (parsed.guestName) {
+      rows.push({ label: "Guest name", value: parsed.guestName });
+    }
+
+    if (housemate) {
+      rows.push({ label: "Known housemate", value: housemate.name });
+    }
+
+    if (parsed.scope === "house") {
+      rows.push({ label: "Scope", value: "Whole house" });
+    }
+
+    if (parsed.scope === "room" && room) {
+      rows.push({ label: "Room", value: room.name });
+    } else if (parsed.scope === "room" && parsed.roomId) {
+      rows.push({ label: "Room", value: parsed.roomId });
+    }
+
+    if (parsed.scope === "unknown") {
+      rows.push({ label: "Scope", value: "Unknown" });
+    }
+
+    return rows;
+  }
+
+  if (parsed.type === "presence") {
+    const housemate = parsed.personId
+      ? houseConfig.people.find((candidate) => candidate.id === parsed.personId)
+      : null;
+
+    const rows: Array<{ label: string; value: string }> = [];
+
+    if (housemate) {
+      rows.push({ label: "Known housemate", value: housemate.name });
+    } else if (parsed.personId) {
+      rows.push({ label: "Known housemate", value: parsed.personId });
+    }
+
+    if (parsed.presenceState) {
+      rows.push({ label: "Presence state", value: parsed.presenceState });
+    }
+
+    if (parsed.location) {
+      rows.push({ label: "Location", value: parsed.location });
+    }
+
+    return rows;
+  }
+
+  return [{ label: "Match", value: "No structured fields captured" }];
+}
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const [{ error, message }, authState, appConfig] = await Promise.all([
+    searchParams,
+    getAdminAuthState(),
+    loadAppConfig(),
+  ]);
+  const houseConfig = configToHouseConfig(appConfig);
 
   if (!authState.initialized) {
     redirect("/admin/setup");
@@ -15,66 +183,230 @@ export default async function AdminPage() {
     redirect("/admin/login");
   }
 
+  const calendarData = await loadCalendarData({ appConfig, houseConfig });
+  const today = currentDateInTimeZone(houseConfig.timezone);
+  const interpretationRows = calendarData.eventInterpretations
+    .filter((row) => row.raw.endDate >= today)
+    .sort((left, right) => {
+      const startComparison = left.raw.startDate.localeCompare(
+        right.raw.startDate,
+      );
+
+      if (startComparison !== 0) {
+        return startComparison;
+      }
+
+      const endComparison = left.raw.endDate.localeCompare(right.raw.endDate);
+
+      if (endComparison !== 0) {
+        return endComparison;
+      }
+
+      return left.raw.title.localeCompare(right.raw.title);
+    });
+  const unknownInterpretationCount = interpretationRows.filter(
+    (row) => row.parsed.type === "unknown",
+  ).length;
+
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <section className="rounded-[2rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-6 shadow-[var(--app-shadow)] sm:p-8">
+            <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--app-muted)]">
+              Admin
+            </p>
+            <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em]">
+              House calendar control room
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--app-muted)]">
+              Password auth is live and the calendar now keeps a short-lived
+              in-memory ICS cache. Use manual sync when you want to bypass the
+              cache and pull the latest feed immediately.
+            </p>
+
+            <div className="mt-6 space-y-4">
+              <Notice kind="error" message={error} />
+              <Notice kind="info" message={message} />
+            </div>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-2">
+              <div className="rounded-[1.5rem] border border-[color:var(--app-card-border)] bg-white/60 p-5">
+                <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.24em] text-[var(--app-muted)]">
+                  Signed in as
+                </p>
+                <p className="mt-3 text-lg font-semibold">
+                  {authState.session.email}
+                </p>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-[color:var(--app-card-border)] bg-white/60 p-5">
+                <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.24em] text-[var(--app-muted)]">
+                  Session
+                </p>
+                <p className="mt-3 text-lg font-semibold">Active</p>
+                <p className="mt-1 text-sm text-[var(--app-muted)]">
+                  Password auth is the default admin path for this deployment.
+                </p>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-[color:var(--app-card-border)] bg-white/60 p-5">
+                <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.24em] text-[var(--app-muted)]">
+                  Last ICS sync
+                </p>
+                <p className="mt-3 text-lg font-semibold">
+                  {formatTimestamp(calendarData.fetchedAt)}
+                </p>
+                <p className="mt-1 text-sm text-[var(--app-muted)]">
+                  {calendarData.importedEventCount} imported all-day events
+                </p>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-[color:var(--app-card-border)] bg-white/60 p-5">
+                <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.24em] text-[var(--app-muted)]">
+                  Cache policy
+                </p>
+                <p className="mt-3 text-lg font-semibold">
+                  {calendarData.cacheTtlMinutes} minute TTL
+                </p>
+                <p className="mt-1 text-sm text-[var(--app-muted)]">
+                  Next refresh after{" "}
+                  {formatTimestamp(calendarData.nextRefreshAt)}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <aside className="space-y-4">
+            <section className="rounded-[2rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-6 shadow-[var(--app-shadow)]">
+              <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--app-muted)]">
+                Next up
+              </p>
+              <ul className="mt-4 space-y-3 text-sm leading-6 text-[var(--app-muted)]">
+                <li>
+                  Current source:{" "}
+                  {calendarData.source === "ics"
+                    ? "Live ICS import"
+                    : "Sample fallback"}
+                </li>
+                <li>Warnings: {calendarData.warnings.length}</li>
+                <li>Unknown parses: {unknownInterpretationCount}</li>
+                <li>Share-link management</li>
+                <li>Request triage and approval</li>
+              </ul>
+
+              <form action="/admin/sync" method="post" className="mt-6">
+                <Button
+                  type="submit"
+                  className="h-auto rounded-full bg-[var(--app-foreground)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--app-accent-strong)]"
+                >
+                  Sync ICS now
+                </Button>
+              </form>
+
+              <form action="/admin/logout" method="post" className="mt-6">
+                <Button
+                  type="submit"
+                  variant="outline"
+                  className="h-auto rounded-full border-[color:var(--app-card-border)] bg-white/75 px-4 py-2 text-sm font-semibold"
+                >
+                  Sign out
+                </Button>
+              </form>
+            </section>
+          </aside>
+        </div>
+
         <section className="rounded-[2rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-6 shadow-[var(--app-shadow)] sm:p-8">
           <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--app-muted)]">
-            Admin
+            Imported events
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em]">
-            House calendar control room
-          </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--app-muted)]">
-            The first auth slice is live. This page is intentionally narrow: it
-            proves bootstrap, password login, and session protection before the
-            ICS sync and share-link management surfaces exist.
+          <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em]">
+            ICS parser diagnostics
+          </h2>
+          <p className="mt-4 max-w-3xl text-base leading-7 text-[var(--app-muted)]">
+            This list shows the raw imported event titles and how the parser is
+            interpreting them right now. Use it to validate regex rules and
+            catch titles that are still falling through to unknown.
           </p>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <div className="rounded-[1.5rem] border border-[color:var(--app-card-border)] bg-white/60 p-5">
-              <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.24em] text-[var(--app-muted)]">
-                Signed in as
-              </p>
-              <p className="mt-3 text-lg font-semibold">
-                {authState.session.email}
-              </p>
-            </div>
+          <div className="mt-8 space-y-3">
+            {interpretationRows.length === 0 ? (
+              <div className="rounded-[1.5rem] border border-dashed border-[color:var(--app-card-border)] bg-white/40 px-5 py-6 text-sm text-[var(--app-muted)]">
+                No imported events are available yet.
+              </div>
+            ) : (
+              <div className="max-h-[48rem] space-y-3 overflow-y-auto pr-1">
+                {interpretationRows.map(({ parsed, raw }) => {
+                  const parsedFieldRows = buildParsedFieldRows(
+                    parsed,
+                    houseConfig,
+                  );
 
-            <div className="rounded-[1.5rem] border border-[color:var(--app-card-border)] bg-white/60 p-5">
-              <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.24em] text-[var(--app-muted)]">
-                Session
-              </p>
-              <p className="mt-3 text-lg font-semibold">Active</p>
-              <p className="mt-1 text-sm text-[var(--app-muted)]">
-                Password auth is the default admin path for this deployment.
-              </p>
-            </div>
+                  return (
+                    <article
+                      key={raw.id}
+                      className="rounded-[1.5rem] border border-[color:var(--app-card-border)] bg-white/60 p-5"
+                    >
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="min-w-0">
+                          <p className="font-semibold break-words">
+                            {raw.title}
+                          </p>
+                          <p className="mt-1 text-sm text-[var(--app-muted)]">
+                            {formatEventRange(raw.startDate, raw.endDate)}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full bg-stone-100 px-2.5 py-1 font-medium text-stone-700">
+                            {parsed.type}
+                          </span>
+                          <span className="rounded-full bg-stone-100 px-2.5 py-1 font-medium text-stone-700">
+                            {parsed.scope}
+                          </span>
+                          <span className="rounded-full bg-stone-100 px-2.5 py-1 font-medium text-stone-700">
+                            {parsed.visibility}
+                          </span>
+                          <span className="rounded-full bg-stone-100 px-2.5 py-1 font-medium text-stone-700">
+                            {formatConfidence(parsed.confidence)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                        <div>
+                          <p className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.24em] text-[var(--app-muted)]">
+                            Interpretation
+                          </p>
+                          <p className="mt-2 text-sm leading-6">
+                            {describeInterpretation(parsed, houseConfig)}
+                          </p>
+                          <p className="mt-2 text-sm text-[var(--app-muted)]">
+                            Normalized title: {parsed.normalizedTitle}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.24em] text-[var(--app-muted)]">
+                            Parsed fields
+                          </p>
+                          <div className="mt-2 space-y-1 text-sm text-[var(--app-muted)]">
+                            {parsedFieldRows.map((row) => (
+                              <p key={row.label}>
+                                {row.label}: {row.value}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </section>
-
-        <aside className="space-y-4">
-          <section className="rounded-[2rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-6 shadow-[var(--app-shadow)]">
-            <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--app-muted)]">
-              Next up
-            </p>
-            <ul className="mt-4 space-y-3 text-sm leading-6 text-[var(--app-muted)]">
-              <li>ICS import and sync diagnostics</li>
-              <li>Share-link management</li>
-              <li>Request triage and approval</li>
-            </ul>
-
-            <form action="/admin/logout" method="post" className="mt-6">
-              <Button
-                type="submit"
-                variant="outline"
-                className="h-auto rounded-full border-[color:var(--app-card-border)] bg-white/75 px-4 py-2 text-sm font-semibold"
-              >
-                Sign out
-              </Button>
-            </form>
-          </section>
-        </aside>
       </div>
     </main>
   );

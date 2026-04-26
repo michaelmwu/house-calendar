@@ -1,14 +1,13 @@
 import {
   addDays,
   differenceInCalendarDays,
-  formatISO,
   parseISO,
   startOfMonth,
 } from "date-fns";
-import { configToHouseConfig } from "@/lib/config/config";
-import exampleConfig from "../../../config/config.example";
+import { appConfigSchema, configToHouseConfig } from "@/lib/config/config";
+import exampleConfig from "../../../config/config.example.json";
 import { deriveDailyAvailability } from "./availability";
-import { currentDateInTimeZone } from "./date";
+import { currentDateInTimeZone, formatCalendarDate } from "./date";
 import { parseEventTitle } from "./parser";
 import {
   type HouseConfig,
@@ -16,15 +15,16 @@ import {
   rawCalendarEventSchema,
 } from "./types";
 
-export const exampleHouseConfig: HouseConfig =
-  configToHouseConfig(exampleConfig);
+export const exampleHouseConfig: HouseConfig = configToHouseConfig(
+  appConfigSchema.parse(exampleConfig),
+);
 
 function asDate(dateInput: Date | string): Date {
   return typeof dateInput === "string" ? parseISO(dateInput) : dateInput;
 }
 
 function isoDate(date: Date): string {
-  return formatISO(date, { representation: "date" });
+  return formatCalendarDate(date);
 }
 
 export function buildSampleRawEvents(

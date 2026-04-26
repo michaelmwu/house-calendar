@@ -1,0 +1,232 @@
+import "server-only";
+
+import { differenceInCalendarDays, parseISO, startOfMonth } from "date-fns";
+import { type AppConfig, configToHouseConfig } from "@/lib/config/config";
+import { deriveDailyAvailability } from "@/lib/house/availability";
+import { currentDateInTimeZone, formatCalendarDate } from "@/lib/house/date";
+import { parseIcsCalendar } from "@/lib/house/ics";
+import { parseEventTitle } from "@/lib/house/parser";
+import { buildSampleScenario } from "@/lib/house/sample-data";
+import type { HouseConfig, RawCalendarEvent } from "@/lib/house/types";
+import { loadAppConfig, resolveCalendarUrl } from "./app-config";
+import { serverEnv } from "./env";
+
+const DEFAULT_ICS_SYNC_TTL_MINUTES = 15;
+
+type CalendarDataSource = "ics" | "sample";
+type CalendarDataBase = {
+  availability: ReturnType<typeof buildSampleScenario>["sampleDerivedDays"];
+  eventInterpretations: ReturnType<
+    typeof buildSampleScenario
+  >["sampleEventInterpretations"];
+  importedEventCount: number;
+  source: CalendarDataSource;
+  warnings: string[];
+};
+
+type CalendarDataCacheEntry = {
+  expiresAt: number;
+  result: CalendarDataResult;
+};
+
+export type CalendarDataResult = {
+  availability: CalendarDataBase["availability"];
+  cacheTtlMinutes: number;
+  eventInterpretations: CalendarDataBase["eventInterpretations"];
+  fetchedAt: string;
+  importedEventCount: number;
+  nextRefreshAt: string;
+  source: CalendarDataSource;
+  warnings: string[];
+};
+
+type LoadCalendarDataOptions = {
+  appConfig?: AppConfig;
+  forceRefresh?: boolean;
+  houseConfig?: HouseConfig;
+  now?: Date;
+};
+
+let calendarDataCache: CalendarDataCacheEntry | null = null;
+let calendarDataInFlight: Promise<CalendarDataResult> | null = null;
+
+function getCacheTtlMinutes(): number {
+  return serverEnv.ICS_SYNC_TTL_MINUTES ?? DEFAULT_ICS_SYNC_TTL_MINUTES;
+}
+
+function withCacheMetadata(
+  result: CalendarDataBase,
+  fetchedAt: Date,
+): CalendarDataResult {
+  const cacheTtlMinutes = getCacheTtlMinutes();
+  const nextRefreshAt = new Date(
+    fetchedAt.getTime() + cacheTtlMinutes * 60 * 1000,
+  );
+
+  return {
+    ...result,
+    cacheTtlMinutes,
+    fetchedAt: fetchedAt.toISOString(),
+    nextRefreshAt: nextRefreshAt.toISOString(),
+  };
+}
+
+async function fetchCalendarDataWithConfig({
+  appConfig,
+  houseConfig,
+  now,
+}: {
+  appConfig: AppConfig;
+  houseConfig: HouseConfig;
+  now: Date;
+}): Promise<CalendarDataBase> {
+  const warnings: string[] = [];
+  const today = parseISO(currentDateInTimeZone(houseConfig.timezone, now));
+  const calendarStart = startOfMonth(today);
+  const nights = differenceInCalendarDays(today, calendarStart) + 365;
+  const calendarResults = await Promise.all(
+    appConfig.calendars.map(async (calendar) => {
+      const url = resolveCalendarUrl(calendar);
+
+      if (!url) {
+        return {
+          events: [] as RawCalendarEvent[],
+          warnings: [`Calendar "${calendar.label}" is missing an ICS URL.`],
+        };
+      }
+
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+
+        if (!response.ok) {
+          return {
+            events: [] as RawCalendarEvent[],
+            warnings: [
+              `Calendar "${calendar.label}" returned ${response.status}.`,
+            ],
+          };
+        }
+
+        try {
+          return {
+            events: parseIcsCalendar(await response.text()),
+            warnings: [] as string[],
+          };
+        } catch {
+          return {
+            events: [] as RawCalendarEvent[],
+            warnings: [
+              `Calendar "${calendar.label}" returned invalid ICS data.`,
+            ],
+          };
+        }
+      } catch {
+        return {
+          events: [] as RawCalendarEvent[],
+          warnings: [`Calendar "${calendar.label}" could not be fetched.`],
+        };
+      }
+    }),
+  );
+
+  const rawEvents = calendarResults.flatMap((result) => result.events);
+  warnings.push(...calendarResults.flatMap((result) => result.warnings));
+
+  if (rawEvents.length === 0) {
+    const sampleScenario = buildSampleScenario(now);
+
+    if (warnings.length === 0) {
+      warnings.push(
+        "No all-day ICS events were imported. Showing sample data.",
+      );
+    }
+
+    return {
+      availability: sampleScenario.sampleDerivedDays,
+      eventInterpretations: sampleScenario.sampleEventInterpretations,
+      importedEventCount: 0,
+      source: "sample",
+      warnings,
+    };
+  }
+
+  return {
+    availability: deriveDailyAvailability(
+      houseConfig,
+      rawEvents,
+      formatCalendarDate(calendarStart),
+      nights,
+    ),
+    eventInterpretations: rawEvents.map((raw) => ({
+      raw,
+      parsed: parseEventTitle(raw.title, houseConfig),
+    })),
+    importedEventCount: rawEvents.length,
+    source: "ics",
+    warnings,
+  };
+}
+
+export async function loadCalendarData({
+  appConfig,
+  forceRefresh = false,
+  houseConfig,
+  now = new Date(),
+}: LoadCalendarDataOptions = {}): Promise<CalendarDataResult> {
+  const nowMs = now.getTime();
+
+  if (
+    !forceRefresh &&
+    calendarDataCache &&
+    calendarDataCache.expiresAt > nowMs
+  ) {
+    return calendarDataCache.result;
+  }
+
+  if (calendarDataInFlight && !forceRefresh) {
+    return calendarDataInFlight;
+  }
+
+  const inFlightState: {
+    promise: Promise<CalendarDataResult> | null;
+  } = {
+    promise: null,
+  };
+
+  inFlightState.promise = (async () => {
+    const resolvedAppConfig = appConfig ?? (await loadAppConfig());
+    const resolvedHouseConfig =
+      houseConfig ?? configToHouseConfig(resolvedAppConfig);
+    const result = withCacheMetadata(
+      await fetchCalendarDataWithConfig({
+        appConfig: resolvedAppConfig,
+        houseConfig: resolvedHouseConfig,
+        now,
+      }),
+      now,
+    );
+
+    if (calendarDataInFlight === inFlightState.promise) {
+      calendarDataCache = {
+        expiresAt: Date.parse(result.nextRefreshAt),
+        result,
+      };
+    }
+
+    return result;
+  })();
+  const inFlight = inFlightState.promise;
+  calendarDataInFlight = inFlight;
+
+  try {
+    return await inFlight;
+  } finally {
+    if (calendarDataInFlight === inFlight) {
+      calendarDataInFlight = null;
+    }
+  }
+}
+
+export async function refreshCalendarData(): Promise<CalendarDataResult> {
+  return loadCalendarData({ forceRefresh: true });
+}
