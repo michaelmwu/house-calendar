@@ -6,7 +6,12 @@ body:
     attributes:
       label: Provide environment information
       description: |
-        Run this command in your project root and paste the results in a code block:
+        Run these commands in your project root and paste the results in a code block:
+        ```bash
+        bunx envinfo --system --binaries
+        bun --version
+        ```
+        If you already use Node.js tooling, you can also run:
         ```bash
         npx envinfo --system --binaries
         ```
