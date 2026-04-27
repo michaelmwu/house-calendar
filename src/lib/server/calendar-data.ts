@@ -62,6 +62,10 @@ function getCacheTtlMinutes(): number {
   return serverEnv.ICS_SYNC_TTL_MINUTES ?? DEFAULT_ICS_SYNC_TTL_MINUTES;
 }
 
+function isDevelopmentEnvironment(): boolean {
+  return process.env.NODE_ENV === "development";
+}
+
 function withCacheMetadata(
   result: CalendarDataBase,
   fetchedAt: Date,
@@ -144,19 +148,34 @@ async function fetchCalendarDataWithConfig({
   warnings.push(...calendarResults.flatMap((result) => result.warnings));
 
   if (rawEvents.length === 0) {
-    const sampleScenario = buildSampleScenario(now);
+    warnings.push(
+      isDevelopmentEnvironment()
+        ? "No all-day ICS events were imported. Showing sample data in development."
+        : "No all-day ICS events were imported.",
+    );
 
-    if (warnings.length === 0) {
-      warnings.push(
-        "No all-day ICS events were imported. Showing sample data.",
-      );
+    if (isDevelopmentEnvironment()) {
+      const sampleScenario = buildSampleScenario(now);
+
+      return {
+        availability: sampleScenario.sampleDerivedDays,
+        eventInterpretations: sampleScenario.sampleEventInterpretations,
+        importedEventCount: 0,
+        source: "sample",
+        warnings,
+      };
     }
 
     return {
-      availability: sampleScenario.sampleDerivedDays,
-      eventInterpretations: sampleScenario.sampleEventInterpretations,
+      availability: deriveDailyAvailability(
+        houseConfig,
+        rawEvents,
+        formatCalendarDate(calendarStart),
+        nights,
+      ),
+      eventInterpretations: [],
       importedEventCount: 0,
-      source: "sample",
+      source: "ics",
       warnings,
     };
   }

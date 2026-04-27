@@ -1,15 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSiteConfig } from "@/lib/config/config";
 import { loadAppConfig } from "@/lib/server/app-config";
 import { getCurrentAdminSession } from "@/lib/server/auth";
 import { refreshCalendarData } from "@/lib/server/calendar-data";
+import { buildRequestUrl } from "@/lib/server/request-url";
 
 function redirectToAdmin(
-  request: Request,
+  request: NextRequest,
   siteId: string,
   params?: Record<string, string>,
 ) {
-  const url = new URL(`/admin/${siteId}`, request.url);
+  const url = buildRequestUrl(request, `/admin/${siteId}`);
 
   for (const [key, value] of Object.entries(params ?? {})) {
     url.searchParams.set(key, value);
@@ -19,7 +20,7 @@ function redirectToAdmin(
 }
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ siteId: string }> },
 ) {
   const { siteId } = await params;
@@ -32,15 +33,17 @@ export async function POST(
   const session = await getCurrentAdminSession();
 
   if (!session) {
-    return NextResponse.redirect(new URL("/admin/login", request.url), 303);
+    return NextResponse.redirect(buildRequestUrl(request, "/admin/login"), 303);
   }
 
   try {
     const result = await refreshCalendarData(siteId);
     const message =
-      result.source === "ics"
-        ? `Imported ${result.importedEventCount} all-day events from ICS.`
-        : "No all-day ICS events were imported. Sample data is still active.";
+      result.source === "sample"
+        ? "No all-day ICS events were imported. Sample data is still active in development."
+        : result.importedEventCount > 0
+          ? `Imported ${result.importedEventCount} all-day events from ICS.`
+          : "No all-day ICS events were imported.";
 
     return redirectToAdmin(request, siteId, {
       message,

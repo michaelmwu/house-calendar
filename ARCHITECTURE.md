@@ -54,6 +54,7 @@ What is real today:
 - parser and availability logic
 - ICS import for all-day feeds
 - short-lived in-memory ICS cache with manual admin refresh
+- development-only sample fallback when a site imports zero all-day ICS events
 - DB-backed single-tenant admin auth
 - Drizzle-backed auth table schema and queries
 - shadcn/ui installed for reusable controls and overlays
