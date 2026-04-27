@@ -6,7 +6,10 @@ import {
   getSiteConfig,
   type SiteConfig,
 } from "@/lib/config/config";
-import { currentDateInTimeZone } from "@/lib/house/date";
+import {
+  currentDateInTimeZone,
+  formatDateTimeRangeInTimeZone,
+} from "@/lib/house/date";
 import type {
   HouseConfig,
   ParsedCalendarEvent,
@@ -58,8 +61,19 @@ function formatTimestamp(timestamp: string): string {
   }).format(new Date(timestamp));
 }
 
-function formatEventRange(event: RawCalendarEvent): string {
-  return `${event.startDate} to ${event.endDate}`;
+export function formatEventRange(
+  event: RawCalendarEvent,
+  timeZone: string,
+): string {
+  if (event.allDay) {
+    return `${event.startDate} to ${event.endDate}`;
+  }
+
+  return formatDateTimeRangeInTimeZone(
+    event.startDate,
+    event.endDate,
+    timeZone,
+  );
 }
 
 function formatConfidence(confidence: number): string {
@@ -442,7 +456,7 @@ export default async function AdminSitePage({
                             {raw.title}
                           </p>
                           <p className="mt-1 text-sm text-[var(--app-muted)]">
-                            {formatEventRange(raw)}
+                            {formatEventRange(raw, houseConfig.timezone)}
                           </p>
                         </div>
 

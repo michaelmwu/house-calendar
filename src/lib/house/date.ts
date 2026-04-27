@@ -151,3 +151,42 @@ export function formatTimeInTimeZone(
     timeZone,
   }).format(date);
 }
+
+function formatDateTimeInTimeZone(
+  value: Date | string,
+  timeZone: string,
+): string {
+  const date = typeof value === "string" ? parseISO(value) : value;
+  const dateLabel = new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "short",
+    timeZone,
+    year: "numeric",
+  }).format(date);
+
+  return `${dateLabel}, ${formatTimeInTimeZone(date, timeZone)}`;
+}
+
+export function formatDateTimeRangeInTimeZone(
+  start: Date | string,
+  end: Date | string,
+  timeZone: string,
+): string {
+  const startDate = typeof start === "string" ? parseISO(start) : start;
+  const endDate = typeof end === "string" ? parseISO(end) : end;
+
+  if (
+    calendarDateInTimeZone(startDate, timeZone) ===
+    calendarDateInTimeZone(endDate, timeZone)
+  ) {
+    return `${formatDateTimeInTimeZone(startDate, timeZone)} - ${formatTimeInTimeZone(
+      endDate,
+      timeZone,
+    )} (${timeZone})`;
+  }
+
+  return `${formatDateTimeInTimeZone(startDate, timeZone)} - ${formatDateTimeInTimeZone(
+    endDate,
+    timeZone,
+  )} (${timeZone})`;
+}

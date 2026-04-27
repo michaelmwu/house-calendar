@@ -4,7 +4,11 @@ import type {
   ParsedCalendarEvent,
   RawCalendarEvent,
 } from "@/lib/house/types";
-import { buildParsedFieldRows, describeInterpretation } from "./page";
+import {
+  buildParsedFieldRows,
+  describeInterpretation,
+  formatEventRange,
+} from "./page";
 
 const houseConfig: HouseConfig = {
   id: "tokyo",
@@ -59,6 +63,12 @@ const parsedStayEvent: ParsedCalendarEvent = {
 };
 
 describe("admin timed event diagnostics", () => {
+  test("formats timed event ranges in the house timezone", () => {
+    expect(formatEventRange(buildTimedRawEvent(), houseConfig.timezone)).toBe(
+      "Apr 29, 2026, 1:00 PM - 3:30 PM (Asia/Tokyo)",
+    );
+  });
+
   test("describes timed events as viewer notes even when the parser matches a stay rule", () => {
     expect(
       describeInterpretation(
