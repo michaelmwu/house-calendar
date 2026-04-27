@@ -148,6 +148,7 @@ export function deriveDailyAvailability(
 
       if (day) {
         day.events.push({
+          ...(event.description ? { description: event.description } : {}),
           endDate: event.endDate,
           id: event.id,
           startDate: event.startDate,

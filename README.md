@@ -48,6 +48,13 @@ events into availability and a small amount of redacted viewer-facing context.
 Timed event titles are shown to viewers as written. Keep them short and
 intentionally shareable.
 
+If you want more control, each site can configure timed notes under
+`calendarDisplay.timedNotes` in config:
+
+- `enabled` turns viewer-facing timed notes on or off.
+- `showTime` controls whether the calendar UI shows the event time range.
+- `textSource` chooses whether the note uses the event `title`, the event description, or `title_then_description`.
+
 ## Privacy Rules For Events
 
 - Overnight stays and presence updates shape the calendar status, but viewers do not see those source events listed back as raw calendar entries.

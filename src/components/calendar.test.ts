@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { addDays, format, parseISO } from "date-fns";
 import type { DailyAvailability } from "@/lib/house/types";
-import { buildDayAriaLabel, buildWeeks } from "./calendar";
+import { buildDayAriaLabel, buildWeeks, resolveDayEventText } from "./calendar";
 
 function buildDay(date: string): DailyAvailability {
   return {
@@ -77,6 +77,44 @@ describe("buildWeeks", () => {
       label: "June 2026",
       startColumn: 1,
     });
+  });
+});
+
+describe("resolveDayEventText", () => {
+  const event = {
+    description: "Please leave the guest room clear",
+    endDate: "2026-05-01T06:30:00.000Z",
+    id: "evt-cleaner",
+    startDate: "2026-05-01T04:00:00.000Z",
+    title: "Cleaner",
+  };
+
+  test("uses the title by default", () => {
+    expect(resolveDayEventText(event, "title")).toBe("Cleaner");
+  });
+
+  test("can use the event description as the note text", () => {
+    expect(resolveDayEventText(event, "description")).toBe(
+      "Please leave the guest room clear",
+    );
+  });
+
+  test("can combine title and description when configured", () => {
+    expect(resolveDayEventText(event, "title_then_description")).toBe(
+      "Cleaner: Please leave the guest room clear",
+    );
+  });
+
+  test("falls back to the title when the description is missing", () => {
+    expect(
+      resolveDayEventText(
+        {
+          ...event,
+          description: undefined,
+        },
+        "description",
+      ),
+    ).toBe("Cleaner");
   });
 });
 

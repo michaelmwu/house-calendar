@@ -163,6 +163,13 @@ export default async function SiteHomePage({
     houseConfig,
     siteConfig,
   });
+  const timedNotes = siteConfig.calendarDisplay.timedNotes;
+  const calendarDays = timedNotes.enabled
+    ? availability
+    : availability.map((day) => ({
+        ...day,
+        events: [],
+      }));
   const requestPolicy = houseConfig.sharePolicies.find(
     (policy) => policy.canRequest,
   );
@@ -184,9 +191,10 @@ export default async function SiteHomePage({
         ) : null}
 
         <Calendar
-          days={availability}
+          days={calendarDays}
           houseName={houseConfig.name}
           requestEnabled={Boolean(requestPolicy?.canRequest)}
+          timedNotes={timedNotes}
           timezone={houseConfig.timezone}
         />
       </div>

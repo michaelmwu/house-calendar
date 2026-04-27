@@ -20,6 +20,13 @@
       "calendarInterpretation": {
         "allDayEndDateMode": "calendar_days"
       },
+      "calendarDisplay": {
+        "timedNotes": {
+          "enabled": true,
+          "showTime": true,
+          "textSource": "title"
+        }
+      },
       "calendars": [
         {
           "id": "primary",
@@ -108,6 +115,13 @@
       },
       "calendarInterpretation": {
         "allDayEndDateMode": "checkout_day"
+      },
+      "calendarDisplay": {
+        "timedNotes": {
+          "enabled": true,
+          "showTime": true,
+          "textSource": "title"
+        }
       },
       "calendars": [
         {

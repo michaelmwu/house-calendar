@@ -10,6 +10,10 @@ type CalendarProps = {
   days: DailyAvailability[];
   houseName: string;
   requestEnabled: boolean;
+  timedNotes: {
+    showTime: boolean;
+    textSource: "title" | "description" | "title_then_description";
+  };
   timezone: string;
 };
 
@@ -230,6 +234,22 @@ function getDayEventSectionLabel(_day: DailyAvailability): string {
   return "On this day";
 }
 
+export function resolveDayEventText(
+  event: DailyAvailability["events"][number],
+  textSource: CalendarProps["timedNotes"]["textSource"],
+): string {
+  const description = event.description?.trim();
+
+  switch (textSource) {
+    case "description":
+      return description || event.title;
+    case "title_then_description":
+      return description ? `${event.title}: ${description}` : event.title;
+    default:
+      return event.title;
+  }
+}
+
 function formatDayEventTimeLabel(
   event: DailyAvailability["events"][number],
   timezone: string,
@@ -242,9 +262,16 @@ function formatDayEventTimeLabel(
 
 function formatDayEventSummary(
   event: DailyAvailability["events"][number],
+  timedNotes: CalendarProps["timedNotes"],
   timezone: string,
 ): string {
-  return `${formatTimeInTimeZone(event.startDate, timezone)} ${event.title}`;
+  const text = resolveDayEventText(event, timedNotes.textSource);
+
+  if (!timedNotes.showTime) {
+    return text;
+  }
+
+  return `${formatTimeInTimeZone(event.startDate, timezone)} ${text}`;
 }
 
 function findNextWholeHouseFreeDate(
@@ -332,6 +359,7 @@ export function Calendar({
   days,
   houseName,
   requestEnabled,
+  timedNotes,
   timezone,
 }: CalendarProps) {
   const today = currentDateInTimeZone(timezone);
@@ -554,6 +582,7 @@ export function Calendar({
                                 <p className="truncate text-[10px] font-medium text-current/85">
                                   {formatDayEventSummary(
                                     day.events[0],
+                                    timedNotes,
                                     timezone,
                                   )}
                                   {day.events.length > 1
@@ -637,10 +666,14 @@ export function Calendar({
               <div className="mt-2 space-y-1 text-sm">
                 {previewDay.events.slice(0, 3).map((event) => (
                   <div key={event.id}>
-                    <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--app-muted)]">
-                      {formatDayEventTimeLabel(event, timezone)}
+                    {timedNotes.showTime ? (
+                      <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--app-muted)]">
+                        {formatDayEventTimeLabel(event, timezone)}
+                      </p>
+                    ) : null}
+                    <p className={timedNotes.showTime ? "truncate" : ""}>
+                      {resolveDayEventText(event, timedNotes.textSource)}
                     </p>
-                    <p className="truncate">{event.title}</p>
                   </div>
                 ))}
               </div>
@@ -682,10 +715,14 @@ export function Calendar({
               <div className="mt-2 space-y-1.5">
                 {selectedDay.events.map((event) => (
                   <div key={event.id}>
-                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--app-muted)]">
-                      {formatDayEventTimeLabel(event, timezone)}
+                    {timedNotes.showTime ? (
+                      <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--app-muted)]">
+                        {formatDayEventTimeLabel(event, timezone)}
+                      </p>
+                    ) : null}
+                    <p className={timedNotes.showTime ? "mt-0.5" : ""}>
+                      {resolveDayEventText(event, timedNotes.textSource)}
                     </p>
-                    <p className="mt-0.5">{event.title}</p>
                   </div>
                 ))}
               </div>

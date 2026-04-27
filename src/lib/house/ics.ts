@@ -148,6 +148,7 @@ function buildRawEvent(
   options: ParseIcsCalendarOptions,
 ): RawCalendarEvent | null {
   const summary = eventProperties.get("SUMMARY")?.[0];
+  const description = eventProperties.get("DESCRIPTION")?.[0];
   const dtStart = eventProperties.get("DTSTART")?.[0];
   const dtEnd = eventProperties.get("DTEND")?.[0];
   const visibilityClass = eventProperties
@@ -190,8 +191,13 @@ function buildRawEvent(
 
   const uid = eventProperties.get("UID")?.[0]?.value?.trim();
 
+  const normalizedDescription = description
+    ? unescapeText(description.value).trim() || undefined
+    : undefined;
+
   return rawCalendarEventSchema.parse({
     id: uid || `ics-event-${index}`,
+    ...(normalizedDescription ? { description: normalizedDescription } : {}),
     title: unescapeText(summary.value).trim(),
     startDate,
     endDate,

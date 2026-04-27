@@ -75,6 +75,9 @@ Useful config fields to know:
 
 - `people[].defaultRoomId` sets the default occupied room for parsed `presence.in` events unless the title explicitly says `not staying`
 - `calendarInterpretation.allDayEndDateMode` controls whether imported all-day ICS end dates use standard exclusive semantics or checkout-day semantics for availability
+- `calendarDisplay.timedNotes.enabled` controls whether timed viewer notes appear in the calendar UI
+- `calendarDisplay.timedNotes.showTime` controls whether timed viewer notes show their time range
+- `calendarDisplay.timedNotes.textSource` controls whether timed viewer notes use the event title, description, or both
 - `site.branding.faviconPath` should point at a local asset under `public/`
 
 ## Day-To-Day Commands

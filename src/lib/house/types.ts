@@ -148,6 +148,7 @@ const isoDateTimeSchema = z
 export const rawCalendarEventSchema = z
   .object({
     id: z.string(),
+    description: z.string().optional(),
     title: z.string(),
     startDate: isoDateTimeSchema,
     endDate: isoDateTimeSchema,
@@ -208,6 +209,7 @@ export const dayPresenceSchema = z.object({
 });
 
 export const dayEventSchema = z.object({
+  description: z.string().optional(),
   id: z.string(),
   endDate: isoDateTimeSchema,
   startDate: isoDateTimeSchema,

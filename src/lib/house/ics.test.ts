@@ -103,6 +103,7 @@ END:VCALENDAR`,
 BEGIN:VEVENT
 UID:timed-1
 SUMMARY:Cleaner
+DESCRIPTION:Please leave the guest room clear
 DTSTART;TZID=Asia/Tokyo:20260429T130000
 DTEND;TZID=Asia/Tokyo:20260429T153000
 END:VEVENT
@@ -125,6 +126,7 @@ END:VCALENDAR`);
     expect(events).toEqual([
       {
         id: "timed-1",
+        description: "Please leave the guest room clear",
         title: "Cleaner",
         startDate: "2026-04-29T04:00:00.000Z",
         endDate: "2026-04-29T06:30:00.000Z",
