@@ -8,7 +8,7 @@ type BrandingConfig = SiteConfig["site"]["branding"];
 
 export function buildSiteMetadata(
   branding: BrandingConfig,
-  fallbackTitle = "house-calendar",
+  fallbackTitle = "House Availability",
 ): Metadata {
   return {
     description: branding.description ?? fallbackDescription,
@@ -23,7 +23,7 @@ export function buildSiteMetadata(
   };
 }
 
-export function buildFallbackMetadata(title = "house-calendar"): Metadata {
+export function buildFallbackMetadata(title = "House Availability"): Metadata {
   return {
     description: fallbackDescription,
     title,

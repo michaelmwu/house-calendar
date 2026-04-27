@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,10 @@ type SearchParams = Promise<{
   error?: string;
   message?: string;
 }>;
+
+export const metadata: Metadata = {
+  title: "Admin login",
+};
 
 export const dynamic = "force-dynamic";
 
