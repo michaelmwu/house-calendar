@@ -173,6 +173,7 @@ Current sync behavior:
 - `POST /admin/{siteId}/sync` forces an immediate refresh for that house and resets its cache entry
 - The cache is in-memory, so restarting the app clears it
 - `people[].defaultRoomId` marks which room a known housemate occupies when a `presence.in` event is parsed, unless the title explicitly says `not staying`
+- Sample fallback is development-only when a site imports zero all-day ICS events; production keeps the real empty state and warnings
 - Calendar cache is keyed by `siteId`, so Tokyo and Taiwan refresh independently
 
 Viewer page access:

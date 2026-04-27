@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { clearAdminSessionCookie, revokeAdminSession } from "@/lib/server/auth";
+import { buildRequestUrl } from "@/lib/server/request-url";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const sessionToken = request.headers
     .get("cookie")
     ?.match(/(?:^|;\s*)house_calendar_admin_session=([^;]+)/)?.[1];
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
   await revokeAdminSession(sessionToken);
 
   const response = NextResponse.redirect(
-    new URL("/admin/login", request.url),
+    buildRequestUrl(request, "/admin/login"),
     303,
   );
   clearAdminSessionCookie(response);

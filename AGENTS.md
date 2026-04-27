@@ -54,6 +54,7 @@ Current calendar sync behavior:
 - ICS imports are cached in-process with a short TTL
 - `/admin/{siteId}/sync` forces a refresh and resets that house cache entry
 - cache state is not persisted yet, so restart clears it
+- sample fallback is development-only when a site imports zero all-day ICS events; production should surface the real empty state with warnings
 
 ## Config Rules
 
