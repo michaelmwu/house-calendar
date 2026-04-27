@@ -1,5 +1,5 @@
 import { bootstrapAdminForDevelopment } from "../src/lib/server/auth";
-import { closeDb } from "../src/lib/server/db";
+import { closeDb, withDatabaseStartupRetry } from "../src/lib/server/db";
 
 type ParsedArgs = {
   email: string;
@@ -69,10 +69,14 @@ export function parseAdminBootstrapDevArgs(
 
 async function main() {
   const { email, password } = parseAdminBootstrapDevArgs();
-  const result = await bootstrapAdminForDevelopment({
-    email,
-    password,
-  });
+  const result = await withDatabaseStartupRetry(
+    () =>
+      bootstrapAdminForDevelopment({
+        email,
+        password,
+      }),
+    { operationName: "admin bootstrap" },
+  );
 
   if (!result.ok) {
     throw new Error(result.error);
