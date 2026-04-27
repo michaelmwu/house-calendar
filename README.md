@@ -170,6 +170,7 @@ Current sync behavior:
 - Page loads reuse cached ICS data for 15 minutes by default
 - `POST /admin/{siteId}/sync` forces an immediate refresh for that house and resets its cache entry
 - The cache is in-memory, so restarting the app clears it
+- Sample fallback is development-only when a site imports zero all-day ICS events; production keeps the real empty state and warnings
 - `people[].defaultRoomId` marks which room a known housemate occupies when a `presence.in` event is parsed
 - Calendar cache is keyed by `siteId`, so Tokyo and Taiwan refresh independently
 

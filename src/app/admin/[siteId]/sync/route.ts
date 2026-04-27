@@ -38,9 +38,11 @@ export async function POST(
   try {
     const result = await refreshCalendarData(siteId);
     const message =
-      result.source === "ics"
-        ? `Imported ${result.importedEventCount} all-day events from ICS.`
-        : "No all-day ICS events were imported. Sample data is still active.";
+      result.source === "sample"
+        ? "No all-day ICS events were imported. Sample data is still active in development."
+        : result.importedEventCount > 0
+          ? `Imported ${result.importedEventCount} all-day events from ICS.`
+          : "No all-day ICS events were imported.";
 
     return redirectToAdmin(request, siteId, {
       message,
