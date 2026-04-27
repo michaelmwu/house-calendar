@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,6 +11,10 @@ import { getAdminAuthState } from "@/lib/server/auth";
 type SearchParams = Promise<{
   error?: string;
 }>;
+
+export const metadata: Metadata = {
+  title: "Admin setup",
+};
 
 export const dynamic = "force-dynamic";
 
