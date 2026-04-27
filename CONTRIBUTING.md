@@ -51,7 +51,7 @@ Full setup and operator commands are in [DEVELOPMENT.md](./DEVELOPMENT.md).
 - Never commit real ICS URLs, signing secrets, mail credentials, or private instance config files
 - Keep checked-in config structural and non-secret
 - Put sensitive values in env or clearly sensitive database fields
-- `config/config.json` is for private local overrides only and is gitignored
+- `config/config.json` is gitignored and never committed; use it for local overrides or deployment-specific config supplied by your deploy mechanism, and only inline secrets or ICS URLs when that file is treated as private
 
 ## Code Boundaries
 
