@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { addDays, format, parseISO } from "date-fns";
 import type { DailyAvailability } from "@/lib/house/types";
-import { buildDayAriaLabel, buildMonths } from "./calendar";
+import { buildDayAriaLabel, buildWeeks } from "./calendar";
 
 function buildDay(date: string): DailyAvailability {
   return {
@@ -15,41 +15,67 @@ function buildDay(date: string): DailyAvailability {
   };
 }
 
-describe("buildMonths", () => {
-  test("does not duplicate trailing days into the next month header", () => {
-    const startDate = parseISO("2026-04-26");
+describe("buildWeeks", () => {
+  test("keeps month transitions in the same continuous week row", () => {
+    const startDate = parseISO("2026-06-28");
     const days = Array.from({ length: 14 }, (_, index) =>
       buildDay(format(addDays(startDate, index), "yyyy-MM-dd")),
     );
 
-    const months = buildMonths(days);
+    const weeks = buildWeeks(days);
 
-    expect(months.map((month) => month.id)).toEqual(["2026-04", "2026-05"]);
+    expect(weeks).toHaveLength(2);
     expect(
-      months[0]?.cells.flatMap((cell) => (cell.day ? [cell.day.date] : [])),
+      weeks[0]?.cells.flatMap((cell) => (cell.day ? [cell.day.date] : [])),
     ).toEqual([
-      "2026-04-26",
-      "2026-04-27",
-      "2026-04-28",
-      "2026-04-29",
-      "2026-04-30",
+      "2026-06-28",
+      "2026-06-29",
+      "2026-06-30",
+      "2026-07-01",
+      "2026-07-02",
+      "2026-07-03",
+      "2026-07-04",
     ]);
     expect(
-      months[1]?.cells.flatMap((cell) => (cell.day ? [cell.day.date] : [])),
+      weeks[1]?.cells.flatMap((cell) => (cell.day ? [cell.day.date] : [])),
     ).toEqual([
-      "2026-05-01",
-      "2026-05-02",
-      "2026-05-03",
-      "2026-05-04",
-      "2026-05-05",
-      "2026-05-06",
-      "2026-05-07",
-      "2026-05-08",
-      "2026-05-09",
+      "2026-07-05",
+      "2026-07-06",
+      "2026-07-07",
+      "2026-07-08",
+      "2026-07-09",
+      "2026-07-10",
+      "2026-07-11",
     ]);
+  });
 
-    expect(months[0]?.cells.slice(-2).every((cell) => !cell.day)).toBe(true);
-    expect(months[1]?.cells.slice(0, 5).every((cell) => !cell.day)).toBe(true);
+  test("prioritizes true month changes for row markers", () => {
+    const startDate = parseISO("2026-06-28");
+    const days = Array.from({ length: 10 }, (_, index) =>
+      buildDay(format(addDays(startDate, index), "yyyy-MM-dd")),
+    );
+
+    const weeks = buildWeeks(days);
+
+    expect(weeks[0]?.monthMarker).toMatchObject({
+      label: "July 2026",
+      startColumn: 4,
+    });
+    expect(weeks[1]?.monthMarker).toBeUndefined();
+  });
+
+  test("uses the first visible day when the range starts mid-month", () => {
+    const startDate = parseISO("2026-06-28");
+    const days = Array.from({ length: 3 }, (_, index) =>
+      buildDay(format(addDays(startDate, index), "yyyy-MM-dd")),
+    );
+
+    const weeks = buildWeeks(days);
+
+    expect(weeks[0]?.monthMarker).toMatchObject({
+      label: "June 2026",
+      startColumn: 1,
+    });
   });
 });
 

@@ -32,6 +32,16 @@ const viewerAccessSchema = z.object({
   mode: z.enum(["public", "password"]).default("public"),
 });
 
+const calendarInterpretationSchema = z
+  .object({
+    allDayEndDateMode: z
+      .enum(["calendar_days", "checkout_day"])
+      .default("calendar_days"),
+  })
+  .default({
+    allDayEndDateMode: "calendar_days",
+  });
+
 const instanceCalendarSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -58,6 +68,7 @@ export const appCalendarSchema = z.union([
 export const siteConfigSchema = z
   .object({
     site: instanceSiteSchema,
+    calendarInterpretation: calendarInterpretationSchema,
     calendars: z.array(appCalendarSchema).min(1),
     rooms: z.array(roomSchema),
     people: z.array(instancePersonSchema),

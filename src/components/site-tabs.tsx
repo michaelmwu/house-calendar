@@ -27,10 +27,10 @@ export function SiteTabs({ currentSiteId, sites }: SiteTabsProps) {
               href={site.href}
               aria-current={isCurrent ? "page" : undefined}
               className={cn(
-                "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                "inline-flex min-w-[9.5rem] items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold whitespace-nowrap transition-[background-color,color,box-shadow]",
                 isCurrent
-                  ? "bg-[var(--app-foreground)] text-white"
-                  : "text-[var(--app-muted)] hover:bg-[color:var(--app-accent)]/10 hover:text-[var(--app-accent-strong)]",
+                  ? "border border-[color:var(--app-accent)]/30 bg-white text-[var(--app-foreground)] shadow-[0_10px_24px_rgba(29,22,12,0.08)]"
+                  : "bg-white/72 text-[var(--app-muted)] hover:bg-white hover:text-[var(--app-accent-strong)]",
               )}
             >
               {site.label}

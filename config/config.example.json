@@ -16,6 +16,9 @@
           "themeColor": "#2d8f6f"
         }
       },
+      "calendarInterpretation": {
+        "allDayEndDateMode": "calendar_days"
+      },
       "calendars": [
         {
           "id": "primary",
@@ -100,6 +103,9 @@
           "description": "Taiwan availability for friends who already know the context.",
           "themeColor": "#8c5a2b"
         }
+      },
+      "calendarInterpretation": {
+        "allDayEndDateMode": "checkout_day"
       },
       "calendars": [
         {

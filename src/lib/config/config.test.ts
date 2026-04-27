@@ -71,6 +71,32 @@ describe("appConfigSchema", () => {
     expect(parsed.viewerAccess.mode).toBe("password");
   });
 
+  test("defaults all-day end date mode to calendar_days", () => {
+    const parsed = appConfigSchema.parse(baseConfig);
+
+    expect(parsed.sites[0]?.calendarInterpretation.allDayEndDateMode).toBe(
+      "calendar_days",
+    );
+  });
+
+  test("accepts checkout_day all-day end date mode", () => {
+    const parsed = appConfigSchema.parse({
+      ...baseConfig,
+      sites: [
+        {
+          ...baseSiteConfig,
+          calendarInterpretation: {
+            allDayEndDateMode: "checkout_day",
+          },
+        },
+      ],
+    });
+
+    expect(parsed.sites[0]?.calendarInterpretation.allDayEndDateMode).toBe(
+      "checkout_day",
+    );
+  });
+
   test("accepts multiple sites and resolves the default site", () => {
     const parsed = appConfigSchema.parse({
       ...baseConfig,

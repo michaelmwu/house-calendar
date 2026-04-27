@@ -113,6 +113,23 @@ function matchTemplatedPresenceRule(
         };
       }
 
+      const bracketOutMatch = normalizedTitle.match(
+        new RegExp(`^${escapedCandidate} out \\((.+)\\)$`, "i"),
+      );
+
+      if (bracketOutMatch) {
+        return {
+          normalizedTitle,
+          type: "presence",
+          scope: "location",
+          personId: person.id,
+          presenceState: "out",
+          location: bracketOutMatch[1]?.trim(),
+          visibility,
+          confidence: 0.98,
+        };
+      }
+
       const bracketInMatch = normalizedTitle.match(
         new RegExp(`^${escapedCandidate} \\((.+)\\)$`, "i"),
       );

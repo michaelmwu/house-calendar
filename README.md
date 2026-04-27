@@ -142,14 +142,28 @@ Recommended self-hosting flow:
 2. Set `defaultSiteId` if you want `/` and `/admin` to open a specific house first
 3. Add one entry under `sites` for each house you want in the deployment
 4. Change each house's rooms, people, branding, parsing rules, and calendars in the JSON override
-5. For each calendar, either:
+5. Optionally set `calendarInterpretation.allDayEndDateMode` per house:
+   - `"calendar_days"` if your calendar events represent the actual occupied calendar days
+   - `"checkout_day"` if your calendar events are written like human travel ranges and the last displayed day should be free/checkout
+6. For each calendar, either:
    - keep `envVar: "ICS_URL_TOKYO"` / `ICS_URL_TAIWAN` style env references and set those in env, or
    - use `url: "https://..."` in `config/config.json` for private local-only dev
-6. If `viewerAccess.mode` is `"password"`, set `VIEWER_PASSWORD` in env
-7. Optionally set `ICS_SYNC_TTL_MINUTES` in env to change the default 15 minute cache TTL
-8. Run `bun dev` and the app will import all-day ICS events directly
+7. If `viewerAccess.mode` is `"password"`, set `VIEWER_PASSWORD` in env
+8. Optionally set `ICS_SYNC_TTL_MINUTES` in env to change the default 15 minute cache TTL
+9. Run `bun dev` and the app will import all-day ICS events directly
 
 `config/config.json` is gitignored and overrides `config/config.example.json` when present.
+
+`calendarInterpretation.allDayEndDateMode` controls how imported all-day ICS
+`DTEND` values are interpreted:
+
+- `"calendar_days"` keeps standard ICS semantics where `DTEND` is exclusive.
+  Example: an event shown in Google Calendar as `May 6–9` blocks May 6, 7, 8,
+  and 9, with May 10 free.
+- `"checkout_day"` shifts imported all-day `DTEND` back by one day so the last
+  displayed day is treated as checkout/free in availability. Example: an event
+  shown in Google Calendar as `May 6–9` blocks May 6, 7, and 8, with May 9
+  free.
 
 Current sync behavior:
 

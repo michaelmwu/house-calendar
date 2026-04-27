@@ -200,6 +200,7 @@ export const dayRoomStatusSchema = z.object({
 export const dayPresenceSchema = z.object({
   personId: z.string(),
   name: z.string(),
+  label: z.string().optional(),
   state: presenceStateSchema,
 });
 

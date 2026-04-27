@@ -67,6 +67,16 @@ describe("parseEventTitle", () => {
     expect(parsed.visibility).toBe("public");
   });
 
+  test("supports bracket shorthand for templated departure presence", () => {
+    const parsed = parseEventTitle("Michael out [Japan]", exampleHouseConfig);
+
+    expect(parsed.type).toBe("presence");
+    expect(parsed.presenceState).toBe("out");
+    expect(parsed.location).toBe("japan");
+    expect(parsed.personId).toBe("michael");
+    expect(parsed.visibility).toBe("public");
+  });
+
   test("supports bracket shorthand for templated presence", () => {
     const parsed = parseEventTitle("Michael [TPE]", exampleHouseConfig);
 

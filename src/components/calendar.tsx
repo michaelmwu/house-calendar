@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  addDays,
-  addMonths,
-  endOfMonth,
-  format,
-  getDay,
-  isAfter,
-  parseISO,
-  startOfMonth,
-} from "date-fns";
+import { addDays, format, getDay, isAfter, parseISO } from "date-fns";
 import type { FocusEvent, MouseEvent } from "react";
 import { useEffect, useState } from "react";
 import { currentDateInTimeZone } from "@/lib/house/date";
@@ -48,10 +39,15 @@ type CalendarCell = {
   day?: DailyAvailability;
 };
 
-type CalendarMonth = {
-  id: string;
+type CalendarMonthMarker = {
   label: string;
+  startColumn: number;
+};
+
+type CalendarWeek = {
+  id: string;
   cells: CalendarCell[];
+  monthMarker?: CalendarMonthMarker;
 };
 
 type PreviewPosition = {
@@ -74,7 +70,7 @@ function getDefaultSelectedDate(
   );
 }
 
-export function buildMonths(days: DailyAvailability[]): CalendarMonth[] {
+export function buildWeeks(days: DailyAvailability[]): CalendarWeek[] {
   if (days.length === 0) {
     return [];
   }
@@ -89,57 +85,59 @@ export function buildMonths(days: DailyAvailability[]): CalendarMonth[] {
 
   const firstDate = parseISO(firstDay.date);
   const lastDate = parseISO(lastDay.date);
-  const months: CalendarMonth[] = [];
+  const weeks: CalendarWeek[] = [];
+  const calendarStart = addDays(firstDate, -getDay(firstDate));
+  const calendarEnd = addDays(lastDate, 6 - getDay(lastDate));
+  const firstDateKey = format(firstDate, "yyyy-MM-dd");
 
-  let cursor = startOfMonth(firstDate);
+  let cursor = calendarStart;
 
-  while (!isAfter(cursor, lastDate)) {
-    const monthStart = startOfMonth(cursor);
-    const monthEnd = endOfMonth(cursor);
-    const visibleStart = firstDate > monthStart ? firstDate : monthStart;
-    const visibleEnd = lastDate < monthEnd ? lastDate : monthEnd;
+  while (!isAfter(cursor, calendarEnd)) {
     const cells: CalendarCell[] = [];
+    let monthMarker: CalendarMonthMarker | undefined;
+    let monthMarkerPriority = 0;
 
-    for (
-      let blankIndex = 0;
-      blankIndex < getDay(visibleStart);
-      blankIndex += 1
-    ) {
-      cells.push({
-        id: `${format(monthStart, "yyyy-MM")}-leading-${blankIndex}`,
-      });
-    }
+    for (let offset = 0; offset < 7; offset += 1) {
+      const cellDate = addDays(cursor, offset);
+      const dateKey = format(cellDate, "yyyy-MM-dd");
+      const isVisibleDate = dateKey >= firstDay.date && dateKey <= lastDay.date;
 
-    let dayCursor = visibleStart;
+      if (!isVisibleDate) {
+        cells.push({
+          id: `${dateKey}-blank`,
+        });
+        continue;
+      }
 
-    while (!isAfter(dayCursor, visibleEnd)) {
-      const dateKey = format(dayCursor, "yyyy-MM-dd");
+      const isFirstVisibleDay = dateKey === firstDateKey;
+      const isFirstDayOfMonth = format(cellDate, "d") === "1";
+      const markerPriority = isFirstDayOfMonth ? 2 : isFirstVisibleDay ? 1 : 0;
+
+      if (markerPriority > monthMarkerPriority) {
+        monthMarker = {
+          label: format(cellDate, "MMMM yyyy"),
+          startColumn: offset + 1,
+        };
+        monthMarkerPriority = markerPriority;
+      }
+
       cells.push({
         id: dateKey,
-        dateLabel: format(dayCursor, "d"),
+        dateLabel: format(cellDate, "d"),
         day: dayMap.get(dateKey),
       });
-      dayCursor = addDays(dayCursor, 1);
     }
 
-    const trailingBlankCount = 6 - getDay(visibleEnd);
-
-    for (let blankIndex = 0; blankIndex < trailingBlankCount; blankIndex += 1) {
-      cells.push({
-        id: `${format(monthStart, "yyyy-MM")}-trailing-${blankIndex}`,
-      });
-    }
-
-    months.push({
-      id: format(monthStart, "yyyy-MM"),
-      label: format(monthStart, "MMMM yyyy"),
+    weeks.push({
+      id: format(cursor, "yyyy-MM-dd"),
       cells,
+      monthMarker,
     });
 
-    cursor = addMonths(cursor, 1);
+    cursor = addDays(cursor, 7);
   }
 
-  return months;
+  return weeks;
 }
 
 function getDayStatusLabel(day: DailyAvailability): string {
@@ -229,6 +227,15 @@ function formatNextFreeDateLabel(
 
 function formatPanelDate(date: string): string {
   return format(parseISO(date), "MMM d");
+}
+
+function getPreviewHeading(
+  previewDay: DailyAvailability,
+  selectedDay: DailyAvailability,
+): string {
+  return previewDay.date === selectedDay.date
+    ? "Selected date"
+    : "Preview date";
 }
 
 function getPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
@@ -347,7 +354,7 @@ export function Calendar({
     return null;
   }
 
-  const months = buildMonths(days);
+  const weeks = buildWeeks(days);
   const selectedDay = days.find((day) => day.date === selectedDate) ?? days[0];
   const previewDay = previewDate
     ? (days.find((day) => day.date === previewDate) ?? null)
@@ -381,9 +388,6 @@ export function Calendar({
             <h1 className="text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">
               {houseName}
             </h1>
-            <p className="mt-1 font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--app-muted)]">
-              Current month onward
-            </p>
           </div>
           <div className="flex items-center gap-2 rounded-full border border-[color:var(--app-card-border)] bg-white/70 px-3 py-1.5 text-xs font-medium text-[var(--app-muted)]">
             <span
@@ -405,17 +409,28 @@ export function Calendar({
           </div>
 
           <div className="h-[78vh] overflow-y-auto pr-1">
-            <div className="space-y-6">
-              {months.map((month) => (
-                <section key={month.id}>
-                  <div className="sticky top-0 z-10 mb-3 rounded-xl border border-[color:var(--app-card-border)] bg-[color:var(--app-background)]/95 px-4 py-2 backdrop-blur">
-                    <h2 className="text-sm font-semibold tracking-[0.08em] text-[var(--app-muted)] uppercase">
-                      {month.label}
-                    </h2>
-                  </div>
+            <div className="space-y-2">
+              {weeks.map((week) => (
+                <div key={week.id} className="space-y-2">
+                  {week.monthMarker ? (
+                    <div className="grid grid-cols-7 gap-2 px-1">
+                      <div
+                        className="flex"
+                        style={{
+                          gridColumn: `${week.monthMarker.startColumn} / -1`,
+                        }}
+                      >
+                        <div className="flex w-full items-center rounded-full border border-[color:var(--app-card-border)] bg-white/88 px-2.5 py-1 shadow-[0_1px_0_rgba(31,28,22,0.04)]">
+                          <p className="shrink-0 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--app-muted)]">
+                            {week.monthMarker.label}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="grid grid-cols-7 gap-2">
-                    {month.cells.map((cell) => {
+                    {week.cells.map((cell) => {
                       if (!cell.day) {
                         return (
                           <div
@@ -461,7 +476,7 @@ export function Calendar({
                         >
                           <div className="flex h-full flex-col justify-between">
                             <div className="flex items-start justify-between gap-2">
-                              <span className="text-sm font-semibold">
+                              <span className="block text-sm font-semibold">
                                 {cell.dateLabel}
                               </span>
                               <span
@@ -493,14 +508,14 @@ export function Calendar({
                       );
                     })}
                   </div>
-                </section>
+                </div>
               ))}
             </div>
           </div>
         </div>
       </div>
 
-      {previewDay && previewDay.date !== selectedDay.date && previewPosition ? (
+      {previewDay && previewPosition ? (
         <div
           className="pointer-events-none fixed z-50 w-[16rem] rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-white/95 p-4 shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur"
           style={{
@@ -511,7 +526,7 @@ export function Calendar({
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.28em] text-[var(--app-muted)]">
-                Preview date
+                {getPreviewHeading(previewDay, selectedDay)}
               </p>
               <h3 className="mt-2 text-lg font-semibold tracking-[-0.04em]">
                 {formatPanelDate(previewDay.date)}
@@ -609,7 +624,7 @@ export function Calendar({
                 >
                   <span>{presence.name}</span>
                   <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
-                    {presence.state}
+                    {presence.label ?? presence.state}
                   </span>
                 </div>
               ))}

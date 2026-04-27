@@ -117,7 +117,10 @@ async function fetchCalendarDataWithConfig({
 
         try {
           return {
-            events: parseIcsCalendar(await response.text()),
+            events: parseIcsCalendar(await response.text(), {
+              allDayEndDateMode:
+                siteConfig.calendarInterpretation.allDayEndDateMode,
+            }),
             warnings: [] as string[],
           };
         } catch {

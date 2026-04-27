@@ -87,6 +87,10 @@ If you add new secret-bearing fields, keep them in env or clearly marked sensiti
 Known housemates may also define `defaultRoomId` in checked-in config. That is
 the room occupied by default when a `presence.in` event is parsed for them.
 
+Each house may also define `calendarInterpretation.allDayEndDateMode` to
+control whether imported all-day ICS end dates follow standard exclusive
+semantics or are treated as checkout days for availability.
+
 Viewer page passwords belong in env, not checked-in config.
 
 The repo now supports one deployment with multiple houses. Keep viewer access

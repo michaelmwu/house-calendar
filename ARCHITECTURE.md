@@ -222,6 +222,7 @@ Responsibilities:
 
 - define structural, safe-to-version-control instance config
 - validate deployment-level viewer access plus per-house branding, rooms, people, calendars, and parsing rules
+- validate per-house calendar interpretation rules such as all-day end-date handling
 - map one selected house config into the internal `HouseConfig` shape
 
 This is the beginning of the hybrid config model.
@@ -237,6 +238,7 @@ Examples:
 - per-house names and timezones
 - per-house rooms and people
 - per-house parsing rules
+- per-house calendar interpretation mode
 - per-house branding
 - per-house share policy defaults
 

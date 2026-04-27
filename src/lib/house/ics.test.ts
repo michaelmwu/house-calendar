@@ -36,6 +36,32 @@ END:VCALENDAR`);
     ]);
   });
 
+  test("supports checkout_day all-day end date mode", () => {
+    const events = parseIcsCalendar(
+      `BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:stay-1
+SUMMARY:Someone stays (guest room)
+DTSTART;VALUE=DATE:20260410
+DTEND;VALUE=DATE:20260413
+END:VEVENT
+END:VCALENDAR`,
+      {
+        allDayEndDateMode: "checkout_day",
+      },
+    );
+
+    expect(events).toEqual([
+      {
+        id: "stay-1",
+        title: "Someone stays (guest room)",
+        startDate: "2026-04-10",
+        endDate: "2026-04-12",
+        allDay: true,
+      },
+    ]);
+  });
+
   test("ignores timed and cancelled events", () => {
     const events = parseIcsCalendar(`BEGIN:VCALENDAR
 BEGIN:VEVENT
