@@ -1,16 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getDefaultSiteId } from "@/lib/config/config";
 import { loadAppConfig } from "@/lib/server/app-config";
 import { bootstrapAdmin, setAdminSessionCookie } from "@/lib/server/auth";
 import { buildRequestUrl } from "@/lib/server/request-url";
 
-function redirectWithError(request: Request, error: string) {
+function redirectWithError(request: NextRequest, error: string) {
   const url = buildRequestUrl(request, "/admin/setup");
   url.searchParams.set("error", error);
   return NextResponse.redirect(url, 303);
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const appConfig = await loadAppConfig();
   const formData = await request.formData();
   const result = await bootstrapAdmin({

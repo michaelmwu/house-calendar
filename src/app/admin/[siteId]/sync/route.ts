@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSiteConfig } from "@/lib/config/config";
 import { loadAppConfig } from "@/lib/server/app-config";
 import { getCurrentAdminSession } from "@/lib/server/auth";
@@ -6,7 +6,7 @@ import { refreshCalendarData } from "@/lib/server/calendar-data";
 import { buildRequestUrl } from "@/lib/server/request-url";
 
 function redirectToAdmin(
-  request: Request,
+  request: NextRequest,
   siteId: string,
   params?: Record<string, string>,
 ) {
@@ -20,7 +20,7 @@ function redirectToAdmin(
 }
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ siteId: string }> },
 ) {
   const { siteId } = await params;

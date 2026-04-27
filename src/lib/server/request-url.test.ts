@@ -1,30 +1,34 @@
 import { describe, expect, test } from "bun:test";
-import { buildRequestUrl, getRequestOrigin } from "./request-url";
+import { NextRequest } from "next/server";
+import { buildRequestUrl } from "./request-url";
 
 describe("request URL helpers", () => {
-  test("prefers forwarded host and proto for public redirects", () => {
-    const request = new Request("http://localhost:3000/tokyo/viewer-access", {
-      headers: {
-        "x-forwarded-host": "calendar.example.com",
-        "x-forwarded-proto": "https",
+  test("reuses Next.js request URL metadata for same-origin redirects", () => {
+    const request = new NextRequest(
+      "https://house.example.com/admin/login?error=bad#ignored",
+      {
+        method: "POST",
       },
-      method: "POST",
-    });
+    );
 
-    expect(getRequestOrigin(request)).toBe("https://calendar.example.com");
-    expect(buildRequestUrl(request, "/tokyo").toString()).toBe(
-      "https://calendar.example.com/tokyo",
+    expect(buildRequestUrl(request, "/admin/tokyo").toString()).toBe(
+      "https://house.example.com/admin/tokyo",
     );
   });
 
-  test("falls back to the request origin when forwarded headers are absent", () => {
-    const request = new Request("https://house.example.com/admin/login", {
-      method: "POST",
-    });
+  test("clears the original query string before callers add redirect params", () => {
+    const request = new NextRequest(
+      "https://house.example.com/tokyo/viewer-access?from=elsewhere",
+      {
+        method: "POST",
+      },
+    );
 
-    expect(getRequestOrigin(request)).toBe("https://house.example.com");
-    expect(buildRequestUrl(request, "/admin/tokyo").toString()).toBe(
-      "https://house.example.com/admin/tokyo",
+    const url = buildRequestUrl(request, "/tokyo");
+    url.searchParams.set("viewerAccessError", "invalid");
+
+    expect(url.toString()).toBe(
+      "https://house.example.com/tokyo?viewerAccessError=invalid",
     );
   });
 });

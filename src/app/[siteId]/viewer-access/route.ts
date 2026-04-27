@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSiteConfig } from "@/lib/config/config";
 import { loadAppConfig } from "@/lib/server/app-config";
 import { buildRequestUrl } from "@/lib/server/request-url";
@@ -10,7 +10,7 @@ import {
 } from "@/lib/server/viewer-access";
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ siteId: string }> },
 ) {
   const { siteId } = await params;
