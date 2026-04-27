@@ -2,8 +2,10 @@ import "server-only";
 
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { cache } from "react";
 import {
   type AppCalendar,
+  type AppConfig,
   appConfigSchema,
   configToHouseConfig,
   getDefaultSiteId,
@@ -13,7 +15,7 @@ import exampleConfig from "../../../config/config.example.json";
 
 const localConfigPath = resolve(process.cwd(), "config/config.json");
 
-export async function loadAppConfig() {
+const readAppConfig = (): AppConfig => {
   if (!existsSync(localConfigPath)) {
     return appConfigSchema.parse(exampleConfig);
   }
@@ -21,7 +23,11 @@ export async function loadAppConfig() {
   return appConfigSchema.parse(
     JSON.parse(readFileSync(localConfigPath, "utf8")),
   );
-}
+};
+
+export const loadAppConfig = cache(
+  async (): Promise<AppConfig> => readAppConfig(),
+);
 
 export async function loadSiteConfig(siteId?: string) {
   const config = await loadAppConfig();

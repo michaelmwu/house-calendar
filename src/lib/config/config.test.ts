@@ -60,6 +60,48 @@ describe("appConfigSchema", () => {
     expect(parsed.viewerAccess.mode).toBe("public");
   });
 
+  test("accepts app-relative favicon paths in branding", () => {
+    const parsed = appConfigSchema.parse({
+      ...baseConfig,
+      sites: [
+        {
+          ...baseSiteConfig,
+          site: {
+            ...baseSiteConfig.site,
+            branding: {
+              ...baseSiteConfig.site.branding,
+              faviconPath: "/branding/default/favicon.png",
+            },
+          },
+        },
+      ],
+    });
+
+    expect(parsed.sites[0]?.site.branding.faviconPath).toBe(
+      "/branding/default/favicon.png",
+    );
+  });
+
+  test("rejects external favicon paths in branding", () => {
+    expect(() =>
+      appConfigSchema.parse({
+        ...baseConfig,
+        sites: [
+          {
+            ...baseSiteConfig,
+            site: {
+              ...baseSiteConfig.site,
+              branding: {
+                ...baseSiteConfig.site.branding,
+                faviconPath: "https://example.com/favicon.png",
+              },
+            },
+          },
+        ],
+      }),
+    ).toThrow(/faviconPath must be an app-relative path/);
+  });
+
   test("accepts password-protected viewer access", () => {
     const parsed = appConfigSchema.parse({
       ...baseConfig,

@@ -13,6 +13,7 @@
         "branding": {
           "title": "Michael's Tokyo House",
           "description": "Private house occupancy, public availability, and trusted stay requests.",
+          "faviconPath": "/branding/default/favicon.png",
           "themeColor": "#2d8f6f"
         }
       },
@@ -101,6 +102,7 @@
         "branding": {
           "title": "Michael's Taiwan House",
           "description": "Taiwan availability for friends who already know the context.",
+          "faviconPath": "/branding/default/favicon.png",
           "themeColor": "#8c5a2b"
         }
       },

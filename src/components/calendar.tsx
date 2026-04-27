@@ -16,6 +16,7 @@ type CalendarProps = {
 const statusClasses = {
   available:
     "bg-emerald-50 text-emerald-950 ring-1 ring-emerald-200 hover:bg-emerald-100",
+  tentative: "bg-sky-50 text-sky-950 ring-1 ring-sky-200 hover:bg-sky-100",
   partial:
     "bg-amber-50 text-amber-950 ring-1 ring-amber-200 hover:bg-amber-100",
   unavailable:
@@ -26,6 +27,7 @@ const statusClasses = {
 
 const statusDotClasses = {
   available: "bg-emerald-500",
+  tentative: "bg-sky-500",
   partial: "bg-amber-500",
   unavailable: "bg-rose-500",
   unknown: "bg-stone-400",
@@ -146,6 +148,8 @@ function getDayStatusLabel(day: DailyAvailability): string {
   switch (day.status) {
     case "available":
       return "Available";
+    case "tentative":
+      return hasSingleRoom ? "Tentative" : "Tentative stay";
     case "partial":
       return "Partially occupied";
     case "unavailable":
@@ -160,12 +164,25 @@ function formatRoomSummary(day: DailyAvailability): string {
   const occupiedCount = day.rooms.filter(
     (room) => room.status === "occupied",
   ).length;
+  const tentativeCount = day.rooms.filter(
+    (room) => room.status === "tentative",
+  ).length;
+  const formatRoomCount = (count: number, status: "occupied" | "tentative") =>
+    `${count} room${count === 1 ? "" : "s"} ${status}`;
 
   if (hasSingleRoom) {
-    return occupiedCount === 0 ? "Room free" : "Room occupied";
+    if (occupiedCount > 0) {
+      return "Room occupied";
+    }
+
+    if (tentativeCount > 0) {
+      return "Room tentative";
+    }
+
+    return "Room free";
   }
 
-  if (occupiedCount === 0) {
+  if (occupiedCount === 0 && tentativeCount === 0) {
     return "All rooms free";
   }
 
@@ -173,7 +190,22 @@ function formatRoomSummary(day: DailyAvailability): string {
     return "Whole house occupied";
   }
 
-  return `${occupiedCount} room occupied`;
+  if (occupiedCount === 0 && tentativeCount === day.rooms.length) {
+    return "Whole house tentative";
+  }
+
+  if (occupiedCount > 0 && tentativeCount > 0) {
+    return `${formatRoomCount(occupiedCount, "occupied")}, ${formatRoomCount(
+      tentativeCount,
+      "tentative",
+    )}`;
+  }
+
+  if (occupiedCount === 0) {
+    return formatRoomCount(tentativeCount, "tentative");
+  }
+
+  return formatRoomCount(occupiedCount, "occupied");
 }
 
 export function buildDayAriaLabel(day: DailyAvailability): string {
@@ -363,11 +395,13 @@ export function Calendar({
   const legendItems: ReadonlyArray<readonly [StatusKey, string]> = hasSingleRoom
     ? [
         ["available", "Room free"],
+        ["tentative", "Room tentative"],
         ["unavailable", "Room occupied"],
         ["unknown", "Needs interpretation"],
       ]
     : [
         ["available", "All rooms free"],
+        ["tentative", "At least one room tentative"],
         ["partial", "At least one room occupied"],
         ["unavailable", "Whole house occupied"],
         ["unknown", "Needs interpretation"],
@@ -497,7 +531,11 @@ export function Calendar({
                                         ? isPastDay
                                           ? "bg-stone-400"
                                           : "bg-[color:var(--app-foreground)]/70"
-                                        : roomBarClass
+                                        : room.status === "tentative"
+                                          ? isPastDay
+                                            ? "bg-stone-300"
+                                            : "bg-sky-400/80"
+                                          : roomBarClass
                                     }`}
                                   />
                                 ))}

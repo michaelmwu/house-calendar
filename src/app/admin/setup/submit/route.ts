@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { getDefaultSiteId } from "@/lib/config/config";
 import { loadAppConfig } from "@/lib/server/app-config";
 import { bootstrapAdmin, setAdminSessionCookie } from "@/lib/server/auth";

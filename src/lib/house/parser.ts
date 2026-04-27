@@ -5,9 +5,13 @@ import {
 } from "./types";
 
 const STAY_RE = /\bstay\b/;
+const MAYBE_STAY_RE = /\bmaybe stay\b/;
 const OUT_RE = /\b(out|away)\b/;
 const IN_RE = /\bin\b/;
 const WHOLE_HOUSE_RE = /\b(whole house|house)\b/;
+const NOT_STAYING_SUFFIX_RE =
+  /^(.*?)(?:\s*,\s*not staying|\s*\(\s*not staying\s*\))$/i;
+const TENTATIVE_HINT_RE = /^(tentative|maybe)$/i;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -30,6 +34,50 @@ function extractBracketHint(normalizedTitle: string): string | undefined {
   return match?.[1]?.trim();
 }
 
+function extractBracketHints(normalizedTitle: string): string[] {
+  return (
+    extractBracketHint(normalizedTitle)
+      ?.split(",")
+      .map((value) => value.trim())
+      .filter(Boolean) ?? []
+  );
+}
+
+function isTentativeHint(value: string): boolean {
+  return TENTATIVE_HINT_RE.test(value.trim());
+}
+
+function isNotStayingHint(value: string): boolean {
+  return value.trim().toLowerCase() === "not staying";
+}
+
+function inferStayStatus(normalizedTitle: string): "confirmed" | "tentative" {
+  return MAYBE_STAY_RE.test(normalizedTitle) ||
+    extractBracketHints(normalizedTitle).some(isTentativeHint)
+    ? "tentative"
+    : "confirmed";
+}
+
+function stripTentativeStayMarkers(title: string): string {
+  return title
+    .replace(/\bmaybe\s+(stay|stays)\b/gi, "$1")
+    .replace(/\(([^)]+)\)/g, (_match, content: string) => {
+      const filtered = content
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .filter((value) => !isTentativeHint(value));
+
+      return filtered.length > 0 ? `(${filtered.join(", ")})` : "";
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function stripNotStayingMarker(title: string): string {
+  return title.replace(NOT_STAYING_SUFFIX_RE, "$1").replace(/\s+/g, " ").trim();
+}
+
 function extractGuestName(
   rawTitle: string,
   normalizedTitle: string,
@@ -39,7 +87,7 @@ function extractGuestName(
     return undefined;
   }
 
-  const match = rawTitle.match(/^\s*(.+?)\s+stays?\b/i);
+  const match = rawTitle.match(/^\s*(.+?)\s+(?:maybe\s+)?stays?\b/i);
   const guestName = match?.[1]?.trim();
 
   return guestName ? guestName : undefined;
@@ -82,6 +130,41 @@ function getTemplatedPresenceVisibility(
   }
 
   return "private";
+}
+
+function parsePresenceLocationDetails(rawLocation: string | undefined): {
+  location: string | undefined;
+  occupiesDefaultRoom?: boolean;
+} {
+  const trimmedLocation = rawLocation?.trim();
+
+  if (!trimmedLocation) {
+    return {
+      location: undefined,
+    };
+  }
+
+  if (isNotStayingHint(trimmedLocation)) {
+    return {
+      location: undefined,
+      occupiesDefaultRoom: false,
+    };
+  }
+
+  const notStayingMatch = trimmedLocation.match(NOT_STAYING_SUFFIX_RE);
+
+  if (!notStayingMatch) {
+    return {
+      location: trimmedLocation,
+    };
+  }
+
+  const location = notStayingMatch[1]?.trim();
+
+  return {
+    location: location ? location : undefined,
+    occupiesDefaultRoom: false,
+  };
 }
 
 function matchTemplatedPresenceRule(
@@ -135,13 +218,18 @@ function matchTemplatedPresenceRule(
       );
 
       if (bracketInMatch) {
+        const { location, occupiesDefaultRoom } = parsePresenceLocationDetails(
+          bracketInMatch[1],
+        );
+
         return {
           normalizedTitle,
           type: "presence",
           scope: "location",
           personId: person.id,
           presenceState: "in",
-          location: bracketInMatch[1]?.trim(),
+          location,
+          occupiesDefaultRoom,
           visibility,
           confidence: 0.98,
         };
@@ -152,13 +240,18 @@ function matchTemplatedPresenceRule(
       );
 
       if (textInMatch) {
+        const { location, occupiesDefaultRoom } = parsePresenceLocationDetails(
+          textInMatch[1],
+        );
+
         return {
           normalizedTitle,
           type: "presence",
           scope: "location",
           personId: person.id,
           presenceState: "in",
-          location: textInMatch[1]?.trim(),
+          location,
+          occupiesDefaultRoom,
           visibility,
           confidence: 0.98,
         };
@@ -202,17 +295,26 @@ function matchExplicitRule(
           visibility: rule.visibility,
           confidence: 0.97,
         };
-      case "presence.in":
+      case "presence.in": {
+        const explicitNotStaying =
+          stripNotStayingMarker(normalizedTitle) !== normalizedTitle;
+        const { location, occupiesDefaultRoom } = parsePresenceLocationDetails(
+          match[1]?.trim(),
+        );
+
         return {
           normalizedTitle,
           type: "presence",
           scope: "location",
           personId: rule.actorId,
           presenceState: "in",
-          location: match[1]?.trim(),
+          location,
+          occupiesDefaultRoom:
+            occupiesDefaultRoom ?? (explicitNotStaying ? false : undefined),
           visibility: rule.visibility,
           confidence: 0.95,
         };
+      }
       case "presence.out":
         return {
           normalizedTitle,
@@ -240,9 +342,11 @@ function fallbackStayParse(
     return undefined;
   }
 
-  const hint = extractBracketHint(normalizedTitle);
+  const hintParts = extractBracketHints(normalizedTitle);
+  const stayStatus = inferStayStatus(normalizedTitle);
+  const scopeHint = hintParts.find((hint) => !isTentativeHint(hint));
 
-  if (hint && WHOLE_HOUSE_RE.test(hint)) {
+  if (scopeHint && WHOLE_HOUSE_RE.test(scopeHint)) {
     return {
       rawTitle,
       normalizedTitle,
@@ -250,6 +354,7 @@ function fallbackStayParse(
       scope: "house",
       personId,
       guestName: extractGuestName(rawTitle, normalizedTitle, personId),
+      stayStatus,
       visibility: "private",
       confidence: personId ? 0.93 : 0.75,
     };
@@ -258,7 +363,7 @@ function fallbackStayParse(
   const room = config.rooms.find((candidate) =>
     [candidate.name, ...candidate.aliases]
       .map((value) => normalizeTitle(value))
-      .includes(hint ?? ""),
+      .some((value) => hintParts.includes(value)),
   );
 
   if (room) {
@@ -269,6 +374,7 @@ function fallbackStayParse(
       scope: "room",
       personId,
       guestName: extractGuestName(rawTitle, normalizedTitle, personId),
+      stayStatus,
       roomId: room.id,
       visibility: "private",
       confidence: personId ? 0.91 : 0.74,
@@ -282,6 +388,7 @@ function fallbackStayParse(
     scope: "unknown",
     personId,
     guestName: extractGuestName(rawTitle, normalizedTitle, personId),
+    stayStatus,
     visibility: "private",
     confidence: personId ? 0.68 : 0.52,
   };
@@ -313,14 +420,22 @@ function fallbackPresenceParse(
     };
   }
 
-  if (bracketHint && !STAY_RE.test(normalizedTitle)) {
+  if (
+    bracketHint &&
+    !STAY_RE.test(normalizedTitle) &&
+    !isNotStayingHint(bracketHint)
+  ) {
+    const { location, occupiesDefaultRoom } =
+      parsePresenceLocationDetails(bracketHint);
+
     return {
       rawTitle: normalizedTitle,
       normalizedTitle,
       type: "presence",
       scope: "location",
       personId,
-      location: bracketHint,
+      location,
+      occupiesDefaultRoom,
       presenceState: "in",
       visibility: "private",
       confidence: 0.86,
@@ -328,7 +443,10 @@ function fallbackPresenceParse(
   }
 
   if (IN_RE.test(normalizedTitle)) {
-    const locationMatch = normalizedTitle.match(/\bin ([^)]+)$/i);
+    const locationMatch = normalizedTitle.match(/(?:^|\b)in (.+)$/i);
+    const { location, occupiesDefaultRoom } = parsePresenceLocationDetails(
+      locationMatch?.[1]?.trim(),
+    );
 
     return {
       rawTitle: normalizedTitle,
@@ -336,7 +454,8 @@ function fallbackPresenceParse(
       type: "presence",
       scope: "location",
       personId,
-      location: locationMatch?.[1]?.trim(),
+      location,
+      occupiesDefaultRoom,
       presenceState: "in",
       visibility: "private",
       confidence: locationMatch ? 0.82 : 0.7,
@@ -353,10 +472,33 @@ export function parseEventTitle(
   const config = houseConfigSchema.parse(configInput);
   const canonicalTitle = canonicalizeTitle(title);
   const normalizedTitle = normalizeTitle(title);
+  const strippedCanonicalTitle = stripTentativeStayMarkers(canonicalTitle);
+  const strippedNormalizedTitle = stripTentativeStayMarkers(normalizedTitle);
+  const notStayingStrippedCanonicalTitle =
+    stripNotStayingMarker(canonicalTitle);
+  const notStayingStrippedNormalizedTitle =
+    stripNotStayingMarker(normalizedTitle);
+  const strippedCanonicalTitleWithoutNotStaying = stripNotStayingMarker(
+    strippedCanonicalTitle,
+  );
+  const strippedNormalizedTitleWithoutNotStaying = stripNotStayingMarker(
+    strippedNormalizedTitle,
+  );
   const personId = findPersonId(normalizedTitle, config);
   const guestName = extractGuestName(title, normalizedTitle, personId);
   const explicitMatch = matchExplicitRule(
-    [...new Set([canonicalTitle, normalizedTitle])],
+    [
+      ...new Set([
+        canonicalTitle,
+        normalizedTitle,
+        strippedCanonicalTitle,
+        strippedNormalizedTitle,
+        notStayingStrippedCanonicalTitle,
+        notStayingStrippedNormalizedTitle,
+        strippedCanonicalTitleWithoutNotStaying,
+        strippedNormalizedTitleWithoutNotStaying,
+      ]),
+    ],
     normalizedTitle,
     config,
   );
@@ -369,6 +511,10 @@ export function parseEventTitle(
       guestName:
         explicitMatch.type === "stay"
           ? (explicitMatch.guestName ?? guestName)
+          : undefined,
+      stayStatus:
+        explicitMatch.type === "stay"
+          ? inferStayStatus(normalizedTitle)
           : undefined,
       personId: explicitMatch.personId ?? personId,
     };
