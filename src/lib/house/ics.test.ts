@@ -143,4 +143,58 @@ END:VCALENDAR`);
       },
     ]);
   });
+
+  test("uses the default timed event timezone for floating timed events", () => {
+    const events = parseIcsCalendar(
+      `BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:timed-floating-1
+SUMMARY:Cleaner
+DTSTART:20260429T130000
+DTEND:20260429T153000
+END:VEVENT
+END:VCALENDAR`,
+      {
+        defaultTimedEventTimeZone: "Asia/Tokyo",
+      },
+    );
+
+    expect(events).toEqual([
+      {
+        id: "timed-floating-1",
+        title: "Cleaner",
+        startDate: "2026-04-29T04:00:00.000Z",
+        endDate: "2026-04-29T06:30:00.000Z",
+        allDay: false,
+        visibility: "public",
+      },
+    ]);
+  });
+
+  test("falls back to the default timezone when timed event TZID is invalid", () => {
+    const events = parseIcsCalendar(
+      `BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:timed-invalid-tz-1
+SUMMARY:Cleaner
+DTSTART;TZID="Tokyo Standard Time":20260429T130000
+DTEND;TZID="Tokyo Standard Time":20260429T153000
+END:VEVENT
+END:VCALENDAR`,
+      {
+        defaultTimedEventTimeZone: "Asia/Tokyo",
+      },
+    );
+
+    expect(events).toEqual([
+      {
+        id: "timed-invalid-tz-1",
+        title: "Cleaner",
+        startDate: "2026-04-29T04:00:00.000Z",
+        endDate: "2026-04-29T06:30:00.000Z",
+        allDay: false,
+        visibility: "public",
+      },
+    ]);
+  });
 });

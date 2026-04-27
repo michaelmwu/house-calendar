@@ -51,7 +51,7 @@ intentionally shareable.
 If you want more control, each site can configure timed notes under
 `calendarDisplay.timedNotes` in config:
 
-- `enabled` turns viewer-facing timed notes on or off.
+- `enabled` turns viewer-facing timed notes on or off. It defaults to `false`, so timed notes are opt-in.
 - `showTime` controls whether the calendar UI shows the event time range.
 - `textSource` chooses whether the note uses the event `title`, the event description, or `title_then_description`.
 

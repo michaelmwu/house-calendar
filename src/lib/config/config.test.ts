@@ -143,7 +143,7 @@ describe("appConfigSchema", () => {
     const parsed = appConfigSchema.parse(baseConfig);
 
     expect(parsed.sites[0]?.calendarDisplay.timedNotes).toEqual({
-      enabled: true,
+      enabled: false,
       showTime: true,
       textSource: "title",
     });

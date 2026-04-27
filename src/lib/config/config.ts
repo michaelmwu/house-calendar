@@ -61,14 +61,14 @@ const calendarInterpretationSchema = z
 
 const timedNotesDisplaySchema = z
   .object({
-    enabled: z.boolean().default(true),
+    enabled: z.boolean().default(false),
     showTime: z.boolean().default(true),
     textSource: z
       .enum(["title", "description", "title_then_description"])
       .default("title"),
   })
   .default({
-    enabled: true,
+    enabled: false,
     showTime: true,
     textSource: "title",
   });
@@ -79,7 +79,7 @@ const calendarDisplaySchema = z
   })
   .default({
     timedNotes: {
-      enabled: true,
+      enabled: false,
       showTime: true,
       textSource: "title",
     },

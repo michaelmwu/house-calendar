@@ -146,6 +146,10 @@ async function fetchCalendarDataWithConfig({
   );
 
   const rawEvents = calendarResults.flatMap((result) => result.events);
+  const eventInterpretations = rawEvents.map((raw) => ({
+    raw,
+    parsed: parseEventTitle(raw.title, houseConfig),
+  }));
   const importedAllDayEventCount = rawEvents.filter(
     (event) => event.allDay,
   ).length;
@@ -177,7 +181,7 @@ async function fetchCalendarDataWithConfig({
         formatCalendarDate(calendarStart),
         nights,
       ),
-      eventInterpretations: [],
+      eventInterpretations,
       importedEventCount: importedAllDayEventCount,
       source: "ics",
       warnings,
@@ -191,10 +195,7 @@ async function fetchCalendarDataWithConfig({
       formatCalendarDate(calendarStart),
       nights,
     ),
-    eventInterpretations: rawEvents.map((raw) => ({
-      raw,
-      parsed: parseEventTitle(raw.title, houseConfig),
-    })),
+    eventInterpretations,
     importedEventCount: importedAllDayEventCount,
     source: "ics",
     warnings,

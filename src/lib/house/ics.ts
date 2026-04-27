@@ -74,6 +74,16 @@ function normalizeTimeZoneId(value: string | undefined): string | undefined {
   return isValidTimeZone(trimmedValue) ? trimmedValue : undefined;
 }
 
+function resolveTimedEventTimeZone(
+  property: ParsedIcsProperty,
+  fallbackTimeZone: string | undefined,
+): string | undefined {
+  return (
+    normalizeTimeZoneId(property.params.get("TZID")) ??
+    normalizeTimeZoneId(fallbackTimeZone)
+  );
+}
+
 function parseIcsDate(
   value: string,
   options: { timeZone?: string } = {},
@@ -166,15 +176,17 @@ function buildRawEvent(
   }
 
   const allDay = isAllDayProperty(dtStart) || isAllDayProperty(dtEnd);
-  const timedEventTimeZone =
-    dtStart.params.get("TZID") ??
-    dtEnd.params.get("TZID") ??
-    options.defaultTimedEventTimeZone;
   const startDate = parseIcsDate(dtStart.value, {
-    timeZone: timedEventTimeZone,
+    timeZone: resolveTimedEventTimeZone(
+      dtStart,
+      options.defaultTimedEventTimeZone,
+    ),
   });
   const rawEndDate = parseIcsDate(dtEnd.value, {
-    timeZone: timedEventTimeZone,
+    timeZone: resolveTimedEventTimeZone(
+      dtEnd,
+      options.defaultTimedEventTimeZone,
+    ),
   });
 
   if (!startDate || !rawEndDate) {

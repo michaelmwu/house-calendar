@@ -71,8 +71,12 @@ function describeInterpretation(
   houseConfig: HouseConfig,
   raw: RawCalendarEvent,
 ): string {
-  if (!raw.allDay && parsed.type === "unknown") {
+  if (!raw.allDay && parsed.type === "unknown" && raw.visibility === "public") {
     return "Timed day event shown on its start date without affecting availability.";
+  }
+
+  if (!raw.allDay && parsed.type === "unknown") {
+    return "Timed day event hidden from viewers because the source event is private or confidential.";
   }
 
   if (parsed.type === "unknown") {
@@ -126,7 +130,15 @@ function buildParsedFieldRows(
   raw: RawCalendarEvent,
 ): Array<{ label: string; value: string }> {
   if (!raw.allDay && parsed.type === "unknown") {
-    return [{ label: "Day event", value: "Shown on the viewer calendar" }];
+    return [
+      {
+        label: "Day event",
+        value:
+          raw.visibility === "public"
+            ? "Shown on the viewer calendar"
+            : "Hidden from the viewer calendar (private/confidential)",
+      },
+    ];
   }
 
   if (parsed.type === "stay") {

@@ -163,6 +163,11 @@ describe("loadCalendarData", () => {
 
     expect(result.source).toBe("ics");
     expect(result.importedEventCount).toBe(0);
+    expect(result.eventInterpretations).toHaveLength(2);
+    expect(result.eventInterpretations.map((row) => row.raw.id)).toEqual([
+      "cleaner-1",
+      "test-private-1",
+    ]);
     expect(result.warnings).toContain("No all-day ICS events were imported.");
     expect(eventDay?.events).toEqual([
       {
