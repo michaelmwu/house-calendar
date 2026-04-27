@@ -167,6 +167,8 @@ function formatRoomSummary(day: DailyAvailability): string {
   const tentativeCount = day.rooms.filter(
     (room) => room.status === "tentative",
   ).length;
+  const formatRoomCount = (count: number, status: "occupied" | "tentative") =>
+    `${count} room${count === 1 ? "" : "s"} ${status}`;
 
   if (hasSingleRoom) {
     if (occupiedCount > 0) {
@@ -192,11 +194,18 @@ function formatRoomSummary(day: DailyAvailability): string {
     return "Whole house tentative";
   }
 
-  if (occupiedCount === 0) {
-    return `${tentativeCount} room tentative`;
+  if (occupiedCount > 0 && tentativeCount > 0) {
+    return `${formatRoomCount(occupiedCount, "occupied")}, ${formatRoomCount(
+      tentativeCount,
+      "tentative",
+    )}`;
   }
 
-  return `${occupiedCount} room occupied`;
+  if (occupiedCount === 0) {
+    return formatRoomCount(tentativeCount, "tentative");
+  }
+
+  return formatRoomCount(occupiedCount, "occupied");
 }
 
 export function buildDayAriaLabel(day: DailyAvailability): string {
