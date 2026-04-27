@@ -16,6 +16,24 @@ describe("request URL helpers", () => {
     );
   });
 
+  test("prefers forwarded origin headers when Next sees an internal host", () => {
+    const request = new NextRequest(
+      "http://localhost:3000/tokyo/viewer-access",
+      {
+        headers: {
+          host: "localhost:3000",
+          "x-forwarded-host": "house.example.com",
+          "x-forwarded-proto": "https",
+        },
+        method: "POST",
+      },
+    );
+
+    expect(buildRequestUrl(request, "/tokyo").toString()).toBe(
+      "https://house.example.com/tokyo",
+    );
+  });
+
   test("clears the original query string before callers add redirect params", () => {
     const request = new NextRequest(
       "https://house.example.com/tokyo/viewer-access?from=elsewhere",
