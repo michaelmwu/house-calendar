@@ -144,6 +144,10 @@ function parseIcsDate(
   return null;
 }
 
+function isDateOnlyValue(value: string): boolean {
+  return /^\d{8}$/.test(value);
+}
+
 function isAllDayProperty(property: ParsedIcsProperty): boolean {
   return property.params.get("VALUE")?.toUpperCase() === "DATE";
 }
@@ -175,7 +179,11 @@ function buildRawEvent(
     return null;
   }
 
-  const allDay = isAllDayProperty(dtStart) || isAllDayProperty(dtEnd);
+  const allDay =
+    isAllDayProperty(dtStart) ||
+    isAllDayProperty(dtEnd) ||
+    isDateOnlyValue(dtStart.value) ||
+    isDateOnlyValue(dtEnd.value);
   const startDate = parseIcsDate(dtStart.value, {
     timeZone: resolveTimedEventTimeZone(
       dtStart,

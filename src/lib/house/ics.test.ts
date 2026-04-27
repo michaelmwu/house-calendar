@@ -38,6 +38,28 @@ END:VCALENDAR`);
     ]);
   });
 
+  test("treats date-only DTSTART and DTEND without VALUE=DATE as all-day", () => {
+    const events = parseIcsCalendar(`BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:stay-bare-date-1
+SUMMARY:Someone stays (guest room)
+DTSTART:20260410
+DTEND:20260413
+END:VEVENT
+END:VCALENDAR`);
+
+    expect(events).toEqual([
+      {
+        id: "stay-bare-date-1",
+        title: "Someone stays (guest room)",
+        startDate: "2026-04-10",
+        endDate: "2026-04-13",
+        allDay: true,
+        visibility: "public",
+      },
+    ]);
+  });
+
   test("supports checkout_day all-day end date mode", () => {
     const events = parseIcsCalendar(
       `BEGIN:VCALENDAR

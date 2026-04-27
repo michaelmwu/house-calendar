@@ -181,6 +181,27 @@ describe("deriveDailyAvailability", () => {
     expect(days[0]?.events).toEqual([]);
   });
 
+  test("does not surface overnight timed events as day annotations", () => {
+    const days = deriveDailyAvailability(
+      exampleHouseConfig,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-overnight-note",
+          title: "Overnight maintenance",
+          startDate: "2026-04-19T14:00:00.000Z",
+          endDate: "2026-04-19T16:30:00.000Z",
+          allDay: false,
+          visibility: "public",
+        }),
+      ],
+      "2026-04-19",
+      2,
+    );
+
+    expect(days[0]?.events).toEqual([]);
+    expect(days[1]?.events).toEqual([]);
+  });
+
   test("treats all-day datetime inputs as calendar dates", () => {
     const days = deriveDailyAvailability(
       exampleHouseConfig,

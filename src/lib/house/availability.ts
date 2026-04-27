@@ -144,6 +144,15 @@ export function deriveDailyAvailability(
       }
 
       const eventDay = calendarDateInTimeZone(event.startDate, config.timezone);
+      const eventEndDay = calendarDateInTimeZone(
+        event.endDate,
+        config.timezone,
+      );
+
+      if (eventDay !== eventEndDay) {
+        continue;
+      }
+
       const day = daysByDate.get(eventDay);
 
       if (day) {
