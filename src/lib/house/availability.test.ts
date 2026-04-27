@@ -121,6 +121,7 @@ describe("deriveDailyAvailability", () => {
           startDate: "2026-04-19T15:00:00",
           endDate: "2026-04-19T18:00:00",
           allDay: false,
+          visibility: "public",
         }),
       ],
       "2026-04-19",
@@ -129,6 +130,55 @@ describe("deriveDailyAvailability", () => {
 
     expect(days[0]?.status).toBe("available");
     expect(days[0]?.rooms.every((room) => room.status === "free")).toBeTruthy();
+  });
+
+  test("surfaces timed events as day annotations on their local start date", () => {
+    const days = deriveDailyAvailability(
+      exampleHouseConfig,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-cleaner",
+          title: "Cleaner 1pm-3:30pm JST",
+          startDate: "2026-04-19T04:00:00.000Z",
+          endDate: "2026-04-19T06:30:00.000Z",
+          allDay: false,
+          visibility: "public",
+        }),
+      ],
+      "2026-04-19",
+      1,
+    );
+
+    expect(days[0]?.status).toBe("available");
+    expect(days[0]?.events).toEqual([
+      {
+        endDate: "2026-04-19T06:30:00.000Z",
+        id: "evt-cleaner",
+        startDate: "2026-04-19T04:00:00.000Z",
+        title: "Cleaner 1pm-3:30pm JST",
+      },
+    ]);
+  });
+
+  test("does not surface private timed events as day annotations", () => {
+    const days = deriveDailyAvailability(
+      exampleHouseConfig,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-private-note",
+          title: "Test Event",
+          startDate: "2026-04-19T08:15:00.000Z",
+          endDate: "2026-04-19T11:15:00.000Z",
+          allDay: false,
+          visibility: "private",
+        }),
+      ],
+      "2026-04-19",
+      1,
+    );
+
+    expect(days[0]?.status).toBe("available");
+    expect(days[0]?.events).toEqual([]);
   });
 
   test("treats all-day datetime inputs as calendar dates", () => {

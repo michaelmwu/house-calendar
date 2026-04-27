@@ -1,4 +1,5 @@
 import { addDays, formatISO, parseISO } from "date-fns";
+import { dateTimeInTimeZoneToIso, isValidTimeZone } from "./date";
 import { type RawCalendarEvent, rawCalendarEventSchema } from "./types";
 
 type ParsedIcsProperty = {
@@ -9,6 +10,7 @@ type ParsedIcsProperty = {
 
 type ParseIcsCalendarOptions = {
   allDayEndDateMode?: "calendar_days" | "checkout_day";
+  defaultTimedEventTimeZone?: string;
 };
 
 function unfoldIcsLines(input: string): string[] {
@@ -62,7 +64,20 @@ function unescapeText(value: string): string {
     .replace(/\\;/g, ";");
 }
 
-function parseIcsDate(value: string): string | null {
+function normalizeTimeZoneId(value: string | undefined): string | undefined {
+  const trimmedValue = value?.trim().replace(/^"(.*)"$/, "$1");
+
+  if (!trimmedValue) {
+    return undefined;
+  }
+
+  return isValidTimeZone(trimmedValue) ? trimmedValue : undefined;
+}
+
+function parseIcsDate(
+  value: string,
+  options: { timeZone?: string } = {},
+): string | null {
   const dateMatch = value.match(/^(\d{4})(\d{2})(\d{2})$/);
 
   if (dateMatch) {
@@ -74,18 +89,46 @@ function parseIcsDate(value: string): string | null {
   );
 
   if (utcMatch) {
-    return formatISO(
-      new Date(
-        Date.UTC(
-          Number(utcMatch[1]),
-          Number(utcMatch[2]) - 1,
-          Number(utcMatch[3]),
-          Number(utcMatch[4]),
-          Number(utcMatch[5]),
-          Number(utcMatch[6]),
-        ),
+    return new Date(
+      Date.UTC(
+        Number(utcMatch[1]),
+        Number(utcMatch[2]) - 1,
+        Number(utcMatch[3]),
+        Number(utcMatch[4]),
+        Number(utcMatch[5]),
+        Number(utcMatch[6]),
       ),
-    );
+    ).toISOString();
+  }
+
+  const localDateTimeMatch = value.match(
+    /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?$/,
+  );
+
+  if (localDateTimeMatch) {
+    const timeZone = normalizeTimeZoneId(options.timeZone);
+    const year = Number(localDateTimeMatch[1]);
+    const month = Number(localDateTimeMatch[2]);
+    const day = Number(localDateTimeMatch[3]);
+    const hour = Number(localDateTimeMatch[4]);
+    const minute = Number(localDateTimeMatch[5]);
+    const second = Number(localDateTimeMatch[6] ?? "0");
+
+    if (timeZone) {
+      return dateTimeInTimeZoneToIso(
+        {
+          year,
+          month,
+          day,
+          hour,
+          minute,
+          second,
+        },
+        timeZone,
+      );
+    }
+
+    return new Date(year, month - 1, day, hour, minute, second).toISOString();
   }
 
   return null;
@@ -107,6 +150,10 @@ function buildRawEvent(
   const summary = eventProperties.get("SUMMARY")?.[0];
   const dtStart = eventProperties.get("DTSTART")?.[0];
   const dtEnd = eventProperties.get("DTEND")?.[0];
+  const visibilityClass = eventProperties
+    .get("CLASS")?.[0]
+    ?.value.toUpperCase()
+    .trim();
   const status = eventProperties.get("STATUS")?.[0]?.value.toUpperCase();
 
   if (status === "CANCELLED") {
@@ -118,13 +165,16 @@ function buildRawEvent(
   }
 
   const allDay = isAllDayProperty(dtStart) || isAllDayProperty(dtEnd);
-
-  if (!allDay) {
-    return null;
-  }
-
-  const startDate = parseIcsDate(dtStart.value);
-  const rawEndDate = parseIcsDate(dtEnd.value);
+  const timedEventTimeZone =
+    dtStart.params.get("TZID") ??
+    dtEnd.params.get("TZID") ??
+    options.defaultTimedEventTimeZone;
+  const startDate = parseIcsDate(dtStart.value, {
+    timeZone: timedEventTimeZone,
+  });
+  const rawEndDate = parseIcsDate(dtEnd.value, {
+    timeZone: timedEventTimeZone,
+  });
 
   if (!startDate || !rawEndDate) {
     return null;
@@ -134,7 +184,7 @@ function buildRawEvent(
       ? normalizeAllDayCheckoutEnd(rawEndDate)
       : rawEndDate;
 
-  if (endDate <= startDate) {
+  if (Date.parse(endDate) <= Date.parse(startDate)) {
     return null;
   }
 
@@ -145,7 +195,11 @@ function buildRawEvent(
     title: unescapeText(summary.value).trim(),
     startDate,
     endDate,
-    allDay: true,
+    allDay,
+    visibility:
+      visibilityClass === "PRIVATE" || visibilityClass === "CONFIDENTIAL"
+        ? "private"
+        : "public",
   });
 }
 

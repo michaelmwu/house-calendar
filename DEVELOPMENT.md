@@ -190,6 +190,27 @@ Minimal local setup flow:
 - Cache state is not persisted yet, so restarting the app clears it
 - Sample fallback is development-only when a site imports zero all-day ICS events; production should show the real empty state with warnings
 
+## Calendar Authoring Tips
+
+When you want to control what viewers see, treat the source calendar as having
+two different jobs:
+
+- All-day events drive occupancy interpretation.
+- Short timed events can act as optional day notes for viewers.
+
+Recommended patterns:
+
+- Use all-day titles like `Someone stays (guest room)` or `Someone stays (whole house)` for actual overnight occupancy.
+- Use `maybe stay` or `(tentative)` when the stay is not confirmed.
+- Use housemate presence titles that match your configured rules, such as `Michael (TPE)` or `Michael in Tokyo (not staying)`.
+- Use timed events like `Cleaner 1pm-3:30pm JST` only for logistics you are comfortable showing to trusted viewers.
+
+Privacy rules for timed events:
+
+- Timed notes are displayed to viewers using the event title as written.
+- ICS events with `CLASS:PRIVATE` or `CLASS:CONFIDENTIAL` are imported but skipped in the viewer note UI.
+- Timed notes never mark a room occupied and never change whole-house availability on their own.
+
 ## Local Database Notes
 
 Only Postgres is containerized locally.

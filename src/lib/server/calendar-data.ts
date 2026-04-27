@@ -124,6 +124,7 @@ async function fetchCalendarDataWithConfig({
             events: parseIcsCalendar(await response.text(), {
               allDayEndDateMode:
                 siteConfig.calendarInterpretation.allDayEndDateMode,
+              defaultTimedEventTimeZone: siteConfig.site.timezone,
             }),
             warnings: [] as string[],
           };
@@ -145,9 +146,12 @@ async function fetchCalendarDataWithConfig({
   );
 
   const rawEvents = calendarResults.flatMap((result) => result.events);
+  const importedAllDayEventCount = rawEvents.filter(
+    (event) => event.allDay,
+  ).length;
   warnings.push(...calendarResults.flatMap((result) => result.warnings));
 
-  if (rawEvents.length === 0) {
+  if (importedAllDayEventCount === 0) {
     warnings.push(
       isDevelopmentEnvironment()
         ? "No all-day ICS events were imported. Showing sample data in development."
@@ -174,7 +178,7 @@ async function fetchCalendarDataWithConfig({
         nights,
       ),
       eventInterpretations: [],
-      importedEventCount: 0,
+      importedEventCount: importedAllDayEventCount,
       source: "ics",
       warnings,
     };
@@ -191,7 +195,7 @@ async function fetchCalendarDataWithConfig({
       raw,
       parsed: parseEventTitle(raw.title, houseConfig),
     })),
-    importedEventCount: rawEvents.length,
+    importedEventCount: importedAllDayEventCount,
     source: "ics",
     warnings,
   };

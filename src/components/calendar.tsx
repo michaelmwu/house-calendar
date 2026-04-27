@@ -3,7 +3,7 @@
 import { addDays, format, getDay, isAfter, parseISO } from "date-fns";
 import type { FocusEvent, MouseEvent } from "react";
 import { useEffect, useState } from "react";
-import { currentDateInTimeZone } from "@/lib/house/date";
+import { currentDateInTimeZone, formatTimeInTimeZone } from "@/lib/house/date";
 import type { DailyAvailability } from "@/lib/house/types";
 
 type CalendarProps = {
@@ -209,11 +209,42 @@ function formatRoomSummary(day: DailyAvailability): string {
 }
 
 export function buildDayAriaLabel(day: DailyAvailability): string {
-  return [
+  const labels = [
     format(parseISO(day.date), "MMMM d, yyyy"),
     getDayStatusLabel(day),
     formatRoomSummary(day),
-  ].join(". ");
+  ];
+
+  if (day.events.length > 0) {
+    labels.push(
+      day.events.length === 1
+        ? "1 day event"
+        : `${day.events.length} day events`,
+    );
+  }
+
+  return labels.join(". ");
+}
+
+function getDayEventSectionLabel(_day: DailyAvailability): string {
+  return "On this day";
+}
+
+function formatDayEventTimeLabel(
+  event: DailyAvailability["events"][number],
+  timezone: string,
+): string {
+  return `${formatTimeInTimeZone(event.startDate, timezone)} - ${formatTimeInTimeZone(
+    event.endDate,
+    timezone,
+  )}`;
+}
+
+function formatDayEventSummary(
+  event: DailyAvailability["events"][number],
+  timezone: string,
+): string {
+  return `${formatTimeInTimeZone(event.startDate, timezone)} ${event.title}`;
 }
 
 function findNextWholeHouseFreeDate(
@@ -276,7 +307,7 @@ function getPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
   }
 
   const previewWidth = 260;
-  const previewHeight = 150;
+  const previewHeight = 320;
   const viewportPadding = 16;
 
   return {
@@ -519,6 +550,17 @@ export function Calendar({
                             </div>
 
                             <div className="space-y-1">
+                              {day.events.length > 0 ? (
+                                <p className="truncate text-[10px] font-medium text-current/85">
+                                  {formatDayEventSummary(
+                                    day.events[0],
+                                    timezone,
+                                  )}
+                                  {day.events.length > 1
+                                    ? ` +${day.events.length - 1}`
+                                    : ""}
+                                </p>
+                              ) : null}
                               <p className="truncate text-[11px] font-medium capitalize">
                                 {day.status}
                               </p>
@@ -586,6 +628,24 @@ export function Calendar({
           <p className="mt-3 text-sm text-[var(--app-muted)]">
             {formatRoomSummary(previewDay)}
           </p>
+
+          {previewDay.events.length > 0 ? (
+            <div className="mt-4 border-t border-[color:var(--app-card-border)] pt-3">
+              <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--app-muted)]">
+                {getDayEventSectionLabel(previewDay)}
+              </p>
+              <div className="mt-2 space-y-1 text-sm">
+                {previewDay.events.slice(0, 3).map((event) => (
+                  <div key={event.id}>
+                    <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--app-muted)]">
+                      {formatDayEventTimeLabel(event, timezone)}
+                    </p>
+                    <p className="truncate">{event.title}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -613,6 +673,24 @@ export function Calendar({
           <p className="mt-4 text-sm text-[var(--app-muted)]">
             {formatRoomSummary(selectedDay)}
           </p>
+
+          {selectedDay.events.length > 0 ? (
+            <div className="mt-5 rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm">
+              <p className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.24em] text-[var(--app-muted)]">
+                {getDayEventSectionLabel(selectedDay)}
+              </p>
+              <div className="mt-2 space-y-1.5">
+                {selectedDay.events.map((event) => (
+                  <div key={event.id}>
+                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--app-muted)]">
+                      {formatDayEventTimeLabel(event, timezone)}
+                    </p>
+                    <p className="mt-0.5">{event.title}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {hasSingleRoom ? null : (
             <div className="mt-5 rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm">

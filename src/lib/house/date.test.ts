@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { parseISO, startOfMonth } from "date-fns";
-import { currentDateInTimeZone, formatCalendarDate } from "./date";
+import {
+  currentDateInTimeZone,
+  formatCalendarDate,
+  formatTimeInTimeZone,
+} from "./date";
 
 describe("currentDateInTimeZone", () => {
   test("uses the house timezone instead of the viewer timezone", () => {
@@ -16,5 +20,14 @@ describe("currentDateInTimeZone", () => {
     const today = parseISO("2026-04-26");
 
     expect(formatCalendarDate(startOfMonth(today))).toBe("2026-04-01");
+  });
+
+  test("formats timed events in the house timezone", () => {
+    expect(formatTimeInTimeZone("2026-04-29T04:00:00.000Z", "Asia/Tokyo")).toBe(
+      "1:00 PM",
+    );
+    expect(formatTimeInTimeZone("2026-04-29T06:30:00.000Z", "Asia/Tokyo")).toBe(
+      "3:30 PM",
+    );
   });
 });

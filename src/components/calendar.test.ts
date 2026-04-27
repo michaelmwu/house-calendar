@@ -6,6 +6,7 @@ import { buildDayAriaLabel, buildWeeks } from "./calendar";
 function buildDay(date: string): DailyAvailability {
   return {
     date,
+    events: [],
     status: "available",
     rooms: [
       { id: "my-room", name: "My room", status: "free" },
@@ -83,6 +84,7 @@ describe("buildDayAriaLabel", () => {
   test("includes the full date, status, and room summary", () => {
     const label = buildDayAriaLabel({
       date: "2026-05-01",
+      events: [],
       presence: [],
       rooms: [
         { id: "my-room", name: "My room", status: "free" },
@@ -97,6 +99,7 @@ describe("buildDayAriaLabel", () => {
   test("describes tentative days distinctly from confirmed occupancy", () => {
     const label = buildDayAriaLabel({
       date: "2026-05-01",
+      events: [],
       presence: [],
       rooms: [
         { id: "my-room", name: "My room", status: "free" },
@@ -111,6 +114,7 @@ describe("buildDayAriaLabel", () => {
   test("describes mixed occupied and tentative rooms distinctly", () => {
     const label = buildDayAriaLabel({
       date: "2026-05-01",
+      events: [],
       presence: [],
       rooms: [
         { id: "my-room", name: "My room", status: "occupied" },
@@ -128,11 +132,34 @@ describe("buildDayAriaLabel", () => {
   test("uses room-level wording when the house has a single room", () => {
     const label = buildDayAriaLabel({
       date: "2026-05-01",
+      events: [],
       presence: [],
       rooms: [{ id: "studio", name: "Studio", status: "occupied" }],
       status: "unavailable",
     });
 
     expect(label).toBe("May 1, 2026. Occupied. Room occupied");
+  });
+
+  test("includes day event counts when annotations are present", () => {
+    const label = buildDayAriaLabel({
+      date: "2026-05-01",
+      events: [
+        {
+          endDate: "2026-05-01T06:30:00.000Z",
+          id: "evt-cleaner",
+          startDate: "2026-05-01T04:00:00.000Z",
+          title: "Cleaner 1pm-3:30pm JST",
+        },
+      ],
+      presence: [],
+      rooms: [
+        { id: "my-room", name: "My room", status: "free" },
+        { id: "guest-room", name: "Guest room", status: "free" },
+      ],
+      status: "available",
+    });
+
+    expect(label).toBe("May 1, 2026. Available. All rooms free. 1 day event");
   });
 });

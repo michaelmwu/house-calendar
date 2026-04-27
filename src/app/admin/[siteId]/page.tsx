@@ -7,7 +7,11 @@ import {
   type SiteConfig,
 } from "@/lib/config/config";
 import { currentDateInTimeZone } from "@/lib/house/date";
-import type { HouseConfig, ParsedCalendarEvent } from "@/lib/house/types";
+import type {
+  HouseConfig,
+  ParsedCalendarEvent,
+  RawCalendarEvent,
+} from "@/lib/house/types";
 import { loadAppConfig } from "@/lib/server/app-config";
 import { getAdminAuthState } from "@/lib/server/auth";
 import { loadCalendarData } from "@/lib/server/calendar-data";
@@ -54,8 +58,8 @@ function formatTimestamp(timestamp: string): string {
   }).format(new Date(timestamp));
 }
 
-function formatEventRange(startDate: string, endDate: string): string {
-  return `${startDate} to ${endDate}`;
+function formatEventRange(event: RawCalendarEvent): string {
+  return `${event.startDate} to ${event.endDate}`;
 }
 
 function formatConfidence(confidence: number): string {
@@ -65,7 +69,12 @@ function formatConfidence(confidence: number): string {
 function describeInterpretation(
   parsed: ParsedCalendarEvent,
   houseConfig: HouseConfig,
+  raw: RawCalendarEvent,
 ): string {
+  if (!raw.allDay && parsed.type === "unknown") {
+    return "Timed day event shown on its start date without affecting availability.";
+  }
+
   if (parsed.type === "unknown") {
     return "No deterministic rule matched this title.";
   }
@@ -114,7 +123,12 @@ function describeInterpretation(
 function buildParsedFieldRows(
   parsed: ParsedCalendarEvent,
   houseConfig: HouseConfig,
+  raw: RawCalendarEvent,
 ): Array<{ label: string; value: string }> {
+  if (!raw.allDay && parsed.type === "unknown") {
+    return [{ label: "Day event", value: "Shown on the viewer calendar" }];
+  }
+
   if (parsed.type === "stay") {
     const room = parsed.roomId
       ? houseConfig.rooms.find((candidate) => candidate.id === parsed.roomId)
@@ -254,7 +268,7 @@ export default async function AdminSitePage({
       return left.raw.title.localeCompare(right.raw.title);
     });
   const unknownInterpretationCount = interpretationRows.filter(
-    (row) => row.parsed.type === "unknown",
+    (row) => row.raw.allDay && row.parsed.type === "unknown",
   ).length;
   const siteTabs = buildAdminSiteTabs(appConfig);
 
@@ -383,8 +397,10 @@ export default async function AdminSitePage({
           </h2>
           <p className="mt-4 max-w-3xl text-base leading-7 text-[var(--app-muted)]">
             This list shows the raw imported event titles and how the parser is
-            interpreting them right now. Use it to validate regex rules and
-            catch titles that are still falling through to unknown.
+            interpreting them right now. Timed events can also appear here when
+            they are shown as same-day viewer notes. Use this list to validate
+            regex rules and catch all-day titles that are still falling through
+            to unknown.
           </p>
 
           <div className="mt-8 space-y-3">
@@ -398,6 +414,7 @@ export default async function AdminSitePage({
                   const parsedFieldRows = buildParsedFieldRows(
                     parsed,
                     houseConfig,
+                    raw,
                   );
 
                   return (
@@ -411,11 +428,14 @@ export default async function AdminSitePage({
                             {raw.title}
                           </p>
                           <p className="mt-1 text-sm text-[var(--app-muted)]">
-                            {formatEventRange(raw.startDate, raw.endDate)}
+                            {formatEventRange(raw)}
                           </p>
                         </div>
 
                         <div className="flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full bg-stone-100 px-2.5 py-1 font-medium text-stone-700">
+                            {raw.allDay ? "all-day" : "timed"}
+                          </span>
                           <span className="rounded-full bg-stone-100 px-2.5 py-1 font-medium text-stone-700">
                             {parsed.type}
                           </span>
@@ -437,7 +457,7 @@ export default async function AdminSitePage({
                             Interpretation
                           </p>
                           <p className="mt-2 text-sm leading-6">
-                            {describeInterpretation(parsed, houseConfig)}
+                            {describeInterpretation(parsed, houseConfig, raw)}
                           </p>
                           <p className="mt-2 text-sm text-[var(--app-muted)]">
                             Normalized title: {parsed.normalizedTitle}

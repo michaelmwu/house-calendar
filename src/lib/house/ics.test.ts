@@ -25,6 +25,7 @@ END:VCALENDAR`);
         startDate: "2026-04-10",
         endDate: "2026-04-13",
         allDay: true,
+        visibility: "public",
       },
       {
         id: "presence-1",
@@ -32,6 +33,7 @@ END:VCALENDAR`);
         startDate: "2026-04-15",
         endDate: "2026-04-18",
         allDay: true,
+        visibility: "public",
       },
     ]);
   });
@@ -58,6 +60,7 @@ END:VCALENDAR`,
         startDate: "2026-04-10",
         endDate: "2026-04-12",
         allDay: true,
+        visibility: "public",
       },
     ]);
   });
@@ -90,17 +93,25 @@ END:VCALENDAR`,
         startDate: "2026-04-12",
         endDate: "2026-04-14",
         allDay: true,
+        visibility: "public",
       },
     ]);
   });
 
-  test("ignores timed and cancelled events", () => {
+  test("preserves timed events and hides ICS private class in the raw event model", () => {
     const events = parseIcsCalendar(`BEGIN:VCALENDAR
 BEGIN:VEVENT
 UID:timed-1
-SUMMARY:Lunch
-DTSTART:20260410T010000Z
-DTEND:20260410T020000Z
+SUMMARY:Cleaner
+DTSTART;TZID=Asia/Tokyo:20260429T130000
+DTEND;TZID=Asia/Tokyo:20260429T153000
+END:VEVENT
+BEGIN:VEVENT
+UID:timed-2
+CLASS:PRIVATE
+SUMMARY:Test Event
+DTSTART:20260429T081500Z
+DTEND:20260429T111500Z
 END:VEVENT
 BEGIN:VEVENT
 UID:cancelled-1
@@ -111,6 +122,23 @@ DTEND;VALUE=DATE:20260422
 END:VEVENT
 END:VCALENDAR`);
 
-    expect(events).toEqual([]);
+    expect(events).toEqual([
+      {
+        id: "timed-1",
+        title: "Cleaner",
+        startDate: "2026-04-29T04:00:00.000Z",
+        endDate: "2026-04-29T06:30:00.000Z",
+        allDay: false,
+        visibility: "public",
+      },
+      {
+        id: "timed-2",
+        title: "Test Event",
+        startDate: "2026-04-29T08:15:00.000Z",
+        endDate: "2026-04-29T11:15:00.000Z",
+        allDay: false,
+        visibility: "private",
+      },
+    ]);
   });
 });
