@@ -153,6 +153,41 @@ describe("parseEventTitle", () => {
     expect(parsed.visibility).toBe("public");
   });
 
+  test("keeps explicit private presence rules matched for not staying titles", () => {
+    const parsed = parseEventTitle("Michael in Tokyo (not staying)", {
+      ...exampleHouseConfig,
+      rules: [
+        ...exampleHouseConfig.rules,
+        {
+          actorId: "michael",
+          match: "^michael in tokyo$",
+          type: "presence.in",
+          visibility: "private",
+        },
+      ],
+    });
+
+    expect(parsed.type).toBe("presence");
+    expect(parsed.presenceState).toBe("in");
+    expect(parsed.personId).toBe("michael");
+    expect(parsed.occupiesDefaultRoom).toBe(false);
+    expect(parsed.visibility).toBe("private");
+  });
+
+  test("keeps fallback presence parsing aware of not staying suffixes", () => {
+    const parsed = parseEventTitle(
+      "Michael currently in Tokyo (not staying)",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("presence");
+    expect(parsed.presenceState).toBe("in");
+    expect(parsed.location).toBe("tokyo");
+    expect(parsed.occupiesDefaultRoom).toBe(false);
+    expect(parsed.personId).toBe("michael");
+    expect(parsed.visibility).toBe("private");
+  });
+
   test("keeps heuristic presence parses private by default", () => {
     const parsed = parseEventTitle(
       "Michael away for surgery",
