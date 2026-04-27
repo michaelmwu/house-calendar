@@ -1,0 +1,208 @@
+# DEVELOPMENT.md
+
+## Purpose
+
+This file covers local setup, developer workflow, config handling, and operator commands.
+
+If you want the product overview, start with [README.md](./README.md). If you want the technical model and system boundaries, use [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+## Runtime Model
+
+- The app runs on the host with Bun and Next.js
+- Postgres runs in Docker Compose for local development
+- Drizzle is the ORM and typed query layer for Postgres
+- Per-worktree ports are derived by `scripts/worktree-ports.ts`
+- `bun dev` writes `.env` for the current worktree and starts Next on the derived port
+
+## Prerequisites
+
+- Bun
+- Docker Desktop or another local Docker runtime
+
+## Quick Setup
+
+1. Install dependencies:
+
+   ```bash
+   bun install
+   ```
+
+2. See the derived ports for this worktree:
+
+   ```bash
+   bun run ports
+   ```
+
+3. Start local Postgres:
+
+   ```bash
+   bun run db:start
+   ```
+
+4. Optional: create a private local config override:
+
+   ```bash
+   cp config/config.example.json config/config.json
+   ```
+
+   `config/config.json` is gitignored and may include local-only ICS `url` values.
+
+5. Start the app:
+
+   ```bash
+   bun dev
+   ```
+
+6. Run `bun run ports` again if you need the exact local URL for this worktree.
+
+## Config And Secrets
+
+Treat config as three layers:
+
+1. Checked-in structural config in `config/config.example.json`
+2. Secrets in env such as `ICS_URL_*`, `DATABASE_URL`, `VIEWER_PASSWORD`
+3. Mutable runtime state in Postgres
+
+Important rules:
+
+- Do not commit real ICS URLs, signing secrets, mail credentials, or private instance config files
+- Checked-in config should keep using env-managed ICS URLs by variable name
+- `config/config.json` may inline a direct ICS `url` for private local development only
+- Viewer page passwords belong in env, not checked-in config
+- The current deployment model supports multiple houses in one app instance, so keep viewer access global unless the feature explicitly changes that model
+
+Useful config fields to know:
+
+- `people[].defaultRoomId` sets the default occupied room for parsed `presence.in` events unless the title explicitly says `not staying`
+- `calendarInterpretation.allDayEndDateMode` controls whether imported all-day ICS end dates use standard exclusive semantics or checkout-day semantics for availability
+- `site.branding.faviconPath` should point at a local asset under `public/`
+
+## Day-To-Day Commands
+
+Install dependencies:
+
+```bash
+bun install
+```
+
+See the derived worktree ports:
+
+```bash
+bun run ports
+```
+
+Write `.env` for this worktree:
+
+```bash
+bun run ports:write
+```
+
+Start Postgres in Docker Compose:
+
+```bash
+bun run db:start
+```
+
+Stop Postgres:
+
+```bash
+bun run db:stop
+```
+
+Tail Postgres logs:
+
+```bash
+bun run db:logs
+```
+
+Start the app on the host:
+
+```bash
+bun dev
+```
+
+Run the full local verification flow:
+
+```bash
+bun run check
+```
+
+Run lint only:
+
+```bash
+bun run lint
+```
+
+Format the repo:
+
+```bash
+bun run format
+```
+
+Generate a Drizzle migration from schema changes:
+
+```bash
+bun run db:generate
+```
+
+Push schema changes directly to the database:
+
+```bash
+bun run db:push
+```
+
+Do not replace the wrapped typecheck flow with raw `tsc --noEmit`. This repo uses `scripts/typecheck.ts` because of Next route type generation behavior.
+
+## Admin Auth And Local Operator Flow
+
+The app uses a small password-first admin model. SMTP is not required.
+
+Generate a one-time bootstrap code:
+
+```bash
+bun run admin:bootstrap-code
+```
+
+Create a local-only admin account without using the setup page:
+
+```bash
+bun run admin:bootstrap-dev -- --email owner@example.com --password 'correct horse battery staple'
+```
+
+Reset the existing admin password and revoke all admin sessions:
+
+```bash
+bun run admin:reset-password -- --email owner@example.com --password 'new strong password'
+```
+
+Minimal local setup flow:
+
+1. Run `bun run db:start`
+2. Run `bun run admin:bootstrap-code`
+3. Open `/admin/setup`
+4. Create the single admin account
+5. Use `/admin/login` for normal password login afterward
+
+## Current Calendar Sync Behavior
+
+- ICS imports are cached in-process with a short TTL
+- `POST /admin/{siteId}/sync` forces a refresh and resets that house cache entry
+- Cache state is not persisted yet, so restarting the app clears it
+- Sample fallback is development-only when a site imports zero all-day ICS events; production should show the real empty state with warnings
+
+## Local Database Notes
+
+Only Postgres is containerized locally.
+
+- [compose.yml](./compose.yml) starts a local `postgres:18-alpine`
+- [scripts/worktree-ports.ts](./scripts/worktree-ports.ts) derives unique app and database ports from the worktree path
+- [scripts/dev.ts](./scripts/dev.ts) writes `.env` and starts Next.js on the derived port
+- [src/lib/server/db-schema.ts](./src/lib/server/db-schema.ts) is the Drizzle schema source
+
+For local dev, the generated defaults are:
+
+- `POSTGRES_DB=house_calendar`
+- `POSTGRES_USER=house_calendar`
+- `POSTGRES_PASSWORD=house_calendar`
+
+You can override those by exporting env vars before running the scripts.
