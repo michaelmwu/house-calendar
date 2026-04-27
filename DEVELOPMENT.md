@@ -75,6 +75,9 @@ Useful config fields to know:
 
 - `people[].defaultRoomId` sets the default occupied room for parsed `presence.in` events unless the title explicitly says `not staying`
 - `calendarInterpretation.allDayEndDateMode` controls whether imported all-day ICS end dates use standard exclusive semantics or checkout-day semantics for availability
+- `calendarDisplay.timedNotes.enabled` controls whether timed viewer notes appear in the calendar UI; it defaults to `true`
+- `calendarDisplay.timedNotes.showTime` controls whether timed viewer notes show their time range
+- `calendarDisplay.timedNotes.textSource` controls whether timed viewer notes use the event title, description, or both
 - `site.branding.faviconPath` should point at a local asset under `public/`
 
 ## Day-To-Day Commands
@@ -189,6 +192,27 @@ Minimal local setup flow:
 - `POST /admin/{siteId}/sync` forces a refresh and resets that house cache entry
 - Cache state is not persisted yet, so restarting the app clears it
 - Sample fallback is development-only when a site imports zero all-day ICS events; production should show the real empty state with warnings
+
+## Calendar Authoring Tips
+
+When you want to control what viewers see, treat the source calendar as having
+two different jobs:
+
+- All-day events drive occupancy interpretation.
+- Short timed events can act as optional day notes for viewers.
+
+Recommended patterns:
+
+- Use all-day titles like `Someone stays (guest room)` or `Someone stays (whole house)` for actual overnight occupancy.
+- Use `maybe stay` or `(tentative)` when the stay is not confirmed.
+- Use housemate presence titles that match your configured rules, such as `Michael (TPE)` or `Michael in Tokyo (not staying)`.
+- Use timed events like `Cleaner 1pm-3:30pm JST` only for logistics you are comfortable showing to trusted viewers.
+
+Privacy rules for timed events:
+
+- Timed notes are displayed to viewers using the event title as written.
+- ICS events with `CLASS:PRIVATE` or `CLASS:CONFIDENTIAL` are imported but skipped in the viewer note UI.
+- Timed notes never mark a room occupied and never change whole-house availability on their own.
 
 ## Local Database Notes
 

@@ -59,6 +59,32 @@ const calendarInterpretationSchema = z
     allDayEndDateMode: "calendar_days",
   });
 
+const timedNotesDisplaySchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    showTime: z.boolean().default(true),
+    textSource: z
+      .enum(["title", "description", "title_then_description"])
+      .default("title"),
+  })
+  .default({
+    enabled: true,
+    showTime: true,
+    textSource: "title",
+  });
+
+const calendarDisplaySchema = z
+  .object({
+    timedNotes: timedNotesDisplaySchema,
+  })
+  .default({
+    timedNotes: {
+      enabled: true,
+      showTime: true,
+      textSource: "title",
+    },
+  });
+
 const instanceCalendarSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -86,6 +112,7 @@ export const siteConfigSchema = z
   .object({
     site: instanceSiteSchema,
     calendarInterpretation: calendarInterpretationSchema,
+    calendarDisplay: calendarDisplaySchema,
     calendars: z.array(appCalendarSchema).min(1),
     rooms: z.array(roomSchema),
     people: z.array(instancePersonSchema),

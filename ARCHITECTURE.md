@@ -10,6 +10,10 @@ The system is designed around one central idea:
 
 Private calendar data should be ingested and interpreted into typed internal facts. Public and friend-facing views should render derived availability, never raw event details.
 
+The current exception is small and deliberate: short same-day timed events may
+surface as viewer-facing day notes so the owner can communicate logistics like
+cleaning windows without changing occupancy state.
+
 This architecture matters because the product is doing three jobs at once:
 
 1. privacy protection
@@ -109,6 +113,15 @@ There are at least four conceptual layers:
 4. viewer-facing redacted output
 
 This separation is the main privacy boundary in the system.
+
+Timed day notes are secondary annotations. They do not participate in stay or
+presence derivation, and they should stay lightweight enough that the app does
+not turn back into a full calendar mirror.
+
+For privacy, timed notes only surface when the underlying ICS event is
+effectively public from the feed's perspective. Events marked
+`CLASS:PRIVATE` or `CLASS:CONFIDENTIAL` remain hidden from viewer-facing day
+notes even though they may still exist in the imported source data.
 
 ### 3. Single-tenant deployment, reusable software
 

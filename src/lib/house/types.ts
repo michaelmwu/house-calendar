@@ -148,10 +148,12 @@ const isoDateTimeSchema = z
 export const rawCalendarEventSchema = z
   .object({
     id: z.string(),
+    description: z.string().optional(),
     title: z.string(),
     startDate: isoDateTimeSchema,
     endDate: isoDateTimeSchema,
     allDay: z.boolean().default(true),
+    visibility: visibilitySchema.default("public"),
   })
   .superRefine((event, ctx) => {
     if (compareAsc(parseISO(event.endDate), parseISO(event.startDate)) <= 0) {
@@ -206,6 +208,14 @@ export const dayPresenceSchema = z.object({
   state: presenceStateSchema,
 });
 
+export const dayEventSchema = z.object({
+  description: z.string().optional(),
+  id: z.string(),
+  endDate: isoDateTimeSchema,
+  startDate: isoDateTimeSchema,
+  title: z.string(),
+});
+
 export const dailyAvailabilitySchema = z.object({
   date: z.string(),
   status: z.enum([
@@ -215,6 +225,7 @@ export const dailyAvailabilitySchema = z.object({
     "unavailable",
     "unknown",
   ]),
+  events: z.array(dayEventSchema).default([]),
   rooms: z.array(dayRoomStatusSchema),
   presence: z.array(dayPresenceSchema),
 });

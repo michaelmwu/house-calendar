@@ -1,4 +1,5 @@
 import { addDays, formatISO, isBefore, parseISO } from "date-fns";
+import { calendarDateInTimeZone } from "./date";
 import { parseEventTitle } from "./parser";
 import {
   type DailyAvailability,
@@ -115,6 +116,7 @@ export function deriveDailyAvailability(
   const days: WorkingDay[] = enumerateDays(startDate, endDateExclusive).map(
     (date) => ({
       date,
+      events: [],
       hasUnknownStay: false,
       rooms: config.rooms.map((room) => ({
         id: room.id,
@@ -137,6 +139,32 @@ export function deriveDailyAvailability(
 
   for (const event of events) {
     if (!event.allDay) {
+      if (event.visibility !== "public") {
+        continue;
+      }
+
+      const eventDay = calendarDateInTimeZone(event.startDate, config.timezone);
+      const eventEndDay = calendarDateInTimeZone(
+        event.endDate,
+        config.timezone,
+      );
+
+      if (eventDay !== eventEndDay) {
+        continue;
+      }
+
+      const day = daysByDate.get(eventDay);
+
+      if (day) {
+        day.events.push({
+          ...(event.description ? { description: event.description } : {}),
+          endDate: event.endDate,
+          id: event.id,
+          startDate: event.startDate,
+          title: event.title,
+        });
+      }
+
       continue;
     }
 

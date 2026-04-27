@@ -139,6 +139,40 @@ describe("appConfigSchema", () => {
     );
   });
 
+  test("defaults timed note display settings", () => {
+    const parsed = appConfigSchema.parse(baseConfig);
+
+    expect(parsed.sites[0]?.calendarDisplay.timedNotes).toEqual({
+      enabled: true,
+      showTime: true,
+      textSource: "title",
+    });
+  });
+
+  test("accepts custom timed note display settings", () => {
+    const parsed = appConfigSchema.parse({
+      ...baseConfig,
+      sites: [
+        {
+          ...baseSiteConfig,
+          calendarDisplay: {
+            timedNotes: {
+              enabled: true,
+              showTime: false,
+              textSource: "title_then_description",
+            },
+          },
+        },
+      ],
+    });
+
+    expect(parsed.sites[0]?.calendarDisplay.timedNotes).toEqual({
+      enabled: true,
+      showTime: false,
+      textSource: "title_then_description",
+    });
+  });
+
   test("accepts multiple sites and resolves the default site", () => {
     const parsed = appConfigSchema.parse({
       ...baseConfig,
