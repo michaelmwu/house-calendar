@@ -17,7 +17,10 @@ If a change pushes the app toward exposing raw calendar details, that is probabl
 
 Before making non-trivial changes, read:
 
-- `README.md` for developer workflow
+- `README.md` for product overview and quickstart
+- `DEVELOPMENT.md` for developer workflow
+- `DEPLOYMENT.md` for deployment requirements and config/env expectations
+- `CONTRIBUTING.md` for contribution expectations
 - `ARCHITECTURE.md` for system boundaries and future direction
 - `config/config.example.json` for the current config shape
 
@@ -158,7 +161,10 @@ Especially if changing:
 
 When architecture or workflow changes, update the docs in the same change:
 
-- `README.md` for developer workflow
+- `README.md` for product overview and entrypoint docs
+- `DEVELOPMENT.md` for developer workflow
+- `DEPLOYMENT.md` for deployment requirements
+- `CONTRIBUTING.md` for contributor expectations
 - `ARCHITECTURE.md` for system design
 - `AGENTS.md` for agent operating rules
 

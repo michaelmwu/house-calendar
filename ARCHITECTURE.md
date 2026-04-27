@@ -18,6 +18,14 @@ This architecture matters because the product is doing three jobs at once:
 
 If those concerns blur together, the app will leak details or become harder to reason about.
 
+## Documentation Split
+
+The docs are intentionally split by audience:
+
+- [README.md](./README.md) explains the product in human terms and gives a short quickstart
+- [DEVELOPMENT.md](./DEVELOPMENT.md) covers local setup, commands, and operator workflow
+- This file keeps the technical model, boundaries, and future direction
+
 ## Product Boundaries
 
 ### What this app is
@@ -415,6 +423,8 @@ Responsibilities:
 - work around Next route type generation quirks during standalone typecheck
 
 These scripts are part of the architecture. They are not incidental glue.
+
+Command usage and local setup steps live in [DEVELOPMENT.md](./DEVELOPMENT.md).
 
 ## Runtime Flows
 
