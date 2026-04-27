@@ -87,42 +87,47 @@ function sleep(milliseconds: number): Promise<void> {
   });
 }
 
+type DatabaseStartupRetryOptions = {
+  intervalMs?: number;
+  now?: () => number;
+  onWarning?: (message: string) => void;
+  operationName?: string;
+  sleepFn?: (milliseconds: number) => Promise<void>;
+  timeoutMs?: number;
+};
+
 export async function withDatabaseStartupRetry<T>(
   operation: () => Promise<T>,
   {
     intervalMs = 500,
+    now = Date.now,
+    onWarning = console.warn,
     operationName = "database operation",
-    timeoutMs = 15_000,
-  }: {
-    intervalMs?: number;
-    operationName?: string;
-    timeoutMs?: number;
-  } = {},
+    sleepFn = sleep,
+    timeoutMs = 5_000,
+  }: DatabaseStartupRetryOptions = {},
 ): Promise<T> {
-  const startedAt = Date.now();
+  const deadlineMs = now() + timeoutMs;
   let warned = false;
 
   while (true) {
     try {
       return await operation();
     } catch (error) {
-      const elapsedMs = Date.now() - startedAt;
+      const remainingMs = deadlineMs - now();
 
-      if (
-        !isTransientDatabaseStartupError(error) ||
-        elapsedMs + intervalMs > timeoutMs
-      ) {
+      if (!isTransientDatabaseStartupError(error) || remainingMs <= 0) {
         throw error;
       }
 
       if (!warned) {
-        console.warn(
+        onWarning(
           `Postgres is still starting up. Retrying ${operationName} for up to ${Math.ceil(timeoutMs / 1000)} seconds...`,
         );
         warned = true;
       }
 
-      await sleep(intervalMs);
+      await sleepFn(Math.min(intervalMs, remainingMs));
     }
   }
 }
