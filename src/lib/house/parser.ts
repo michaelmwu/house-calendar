@@ -144,6 +144,13 @@ function parsePresenceLocationDetails(rawLocation: string | undefined): {
     };
   }
 
+  if (isNotStayingHint(trimmedLocation)) {
+    return {
+      location: undefined,
+      occupiesDefaultRoom: false,
+    };
+  }
+
   const notStayingMatch = trimmedLocation.match(NOT_STAYING_SUFFIX_RE);
 
   if (!notStayingMatch) {

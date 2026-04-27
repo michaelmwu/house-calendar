@@ -129,6 +129,17 @@ describe("parseEventTitle", () => {
     expect(parsed.visibility).toBe("public");
   });
 
+  test("supports bare not staying presence annotations", () => {
+    const parsed = parseEventTitle("Michael (not staying)", exampleHouseConfig);
+
+    expect(parsed.type).toBe("presence");
+    expect(parsed.presenceState).toBe("in");
+    expect(parsed.location).toBeUndefined();
+    expect(parsed.occupiesDefaultRoom).toBe(false);
+    expect(parsed.personId).toBe("michael");
+    expect(parsed.visibility).toBe("public");
+  });
+
   test("supports text shorthand for templated presence", () => {
     const parsed = parseEventTitle("Michael in Tokyo", exampleHouseConfig);
 
