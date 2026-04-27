@@ -82,7 +82,7 @@ export const siteConfigSchema = z
 
 export const appConfigSchema = z
   .object({
-    defaultSiteId: z.string().optional(),
+    defaultSiteId: z.string().min(1).optional(),
     viewerAccess: viewerAccessSchema.default({ mode: "public" }),
     sites: z.array(siteConfigSchema).min(1),
   })

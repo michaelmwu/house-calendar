@@ -118,6 +118,15 @@ describe("appConfigSchema", () => {
     ).toThrow(/Unknown defaultSiteId/);
   });
 
+  test("rejects blank defaultSiteId", () => {
+    expect(() =>
+      appConfigSchema.parse({
+        ...baseConfig,
+        defaultSiteId: "",
+      }),
+    ).toThrow();
+  });
+
   test("rejects calendar entries with both envVar and url", () => {
     expect(() =>
       appConfigSchema.parse({

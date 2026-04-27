@@ -90,15 +90,12 @@ export default async function SiteHomePage({
     notFound();
   }
 
-  const siteTabs = buildViewerSiteTabs(appConfig);
   const viewerAccess = await getViewerAccessState(appConfig);
 
   if (!viewerAccess.unlocked) {
     return (
       <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-xl space-y-4">
-          <SiteTabs currentSiteId={siteConfig.site.id} sites={siteTabs} />
-
           <Card className="rounded-[2rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-6 shadow-[var(--app-shadow)] ring-0 sm:p-8">
             <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--app-muted)]">
               Private viewer access
@@ -164,6 +161,7 @@ export default async function SiteHomePage({
   }
 
   const houseConfig = configToHouseConfig(siteConfig);
+  const siteTabs = buildViewerSiteTabs(appConfig);
   const { availability, source, warnings } = await loadCalendarData({
     appConfig,
     houseConfig,
