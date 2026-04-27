@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { clearAdminSessionCookie, revokeAdminSession } from "@/lib/server/auth";
+import { buildRequestUrl } from "@/lib/server/request-url";
 
 export async function POST(request: Request) {
   const sessionToken = request.headers
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
   await revokeAdminSession(sessionToken);
 
   const response = NextResponse.redirect(
-    new URL("/admin/login", request.url),
+    buildRequestUrl(request, "/admin/login"),
     303,
   );
   clearAdminSessionCookie(response);

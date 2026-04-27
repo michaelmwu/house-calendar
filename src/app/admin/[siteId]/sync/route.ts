@@ -3,13 +3,14 @@ import { getSiteConfig } from "@/lib/config/config";
 import { loadAppConfig } from "@/lib/server/app-config";
 import { getCurrentAdminSession } from "@/lib/server/auth";
 import { refreshCalendarData } from "@/lib/server/calendar-data";
+import { buildRequestUrl } from "@/lib/server/request-url";
 
 function redirectToAdmin(
   request: Request,
   siteId: string,
   params?: Record<string, string>,
 ) {
-  const url = new URL(`/admin/${siteId}`, request.url);
+  const url = buildRequestUrl(request, `/admin/${siteId}`);
 
   for (const [key, value] of Object.entries(params ?? {})) {
     url.searchParams.set(key, value);
@@ -32,7 +33,7 @@ export async function POST(
   const session = await getCurrentAdminSession();
 
   if (!session) {
-    return NextResponse.redirect(new URL("/admin/login", request.url), 303);
+    return NextResponse.redirect(buildRequestUrl(request, "/admin/login"), 303);
   }
 
   try {

@@ -103,10 +103,6 @@ export default async function SiteHomePage({
             <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em]">
               Enter the house password
             </h1>
-            <p className="mt-4 text-base leading-7 text-[var(--app-muted)]">
-              {siteConfig.site.houseName} is protected with a simple shared
-              password so the availability page is not openly browseable.
-            </p>
 
             <div className="mt-6 space-y-4">
               <ViewerAccessNotice
