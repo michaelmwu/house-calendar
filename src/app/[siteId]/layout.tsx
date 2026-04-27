@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getSiteConfig } from "@/lib/config/config";
 import { loadAppConfig } from "@/lib/server/app-config";
+import { buildSiteMetadata } from "@/lib/site-metadata";
 
 export async function generateMetadata({
   params,
@@ -15,12 +16,7 @@ export async function generateMetadata({
     return {};
   }
 
-  return {
-    description:
-      siteConfig.site.branding.description ??
-      "Private house occupancy, public availability, and lightweight stay requests.",
-    title: siteConfig.site.branding.title,
-  };
+  return buildSiteMetadata(siteConfig.site.branding);
 }
 
 export default function SiteLayout({

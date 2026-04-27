@@ -85,11 +85,16 @@ using env-managed URLs by variable name.
 If you add new secret-bearing fields, keep them in env or clearly marked sensitive DB columns.
 
 Known housemates may also define `defaultRoomId` in checked-in config. That is
-the room occupied by default when a `presence.in` event is parsed for them.
+the room occupied by default when a `presence.in` event is parsed for them,
+unless the title explicitly says `not staying`.
 
 Each house may also define `calendarInterpretation.allDayEndDateMode` to
 control whether imported all-day ICS end dates follow standard exclusive
 semantics or are treated as checkout days for availability.
+
+Each house may also define `site.branding.faviconPath` as an app-relative path
+to a local asset under `public/`. Keep favicon assets local to the app rather
+than pointing metadata at third-party hosts.
 
 Viewer page passwords belong in env, not checked-in config.
 

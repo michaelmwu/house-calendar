@@ -106,7 +106,7 @@ The current repo includes:
 - A house switcher for hopping between configured houses
 - A DB-backed global admin auth flow with per-house admin views at `/admin/{siteId}`
 - A checked-in example config at `config/config.example.json`
-- A parser module for event titles like `Someone stays (guest room)` and `Michael [TPE]`
+- A parser module for event titles like `Someone stays (guest room)`, `Someone stays (guest room, tentative)`, `Michael [TPE]`, and `Michael in Tokyo (not staying)`
 - Availability derivation that treats end dates as departure dates
 - ICS ingestion for all-day `VEVENT`s from configured calendar feeds
 - A short-lived in-memory ICS cache plus manual admin-triggered sync
@@ -121,6 +121,7 @@ The current repo includes:
 - Raw event titles are inputs, not UI
 - Housemate presence may be public, guest identity should stay private
 - Requests are proposals, not automatic holds
+- Tentative stay titles should render as tentative availability, not confirmed occupancy
 - End dates are exclusive for all-day stays
 
 ## Config Model
@@ -142,6 +143,7 @@ Recommended self-hosting flow:
 2. Set `defaultSiteId` if you want `/` and `/admin` to open a specific house first
 3. Add one entry under `sites` for each house you want in the deployment
 4. Change each house's rooms, people, branding, parsing rules, and calendars in the JSON override
+   - `site.branding.faviconPath` should point at a local asset under `public/`, for example `/branding/default/favicon.png`
 5. Optionally set `calendarInterpretation.allDayEndDateMode` per house:
    - `"calendar_days"` if your calendar events represent the actual occupied calendar days
    - `"checkout_day"` if your calendar events are written like human travel ranges and the last displayed day should be free/checkout
@@ -170,7 +172,7 @@ Current sync behavior:
 - Page loads reuse cached ICS data for 15 minutes by default
 - `POST /admin/{siteId}/sync` forces an immediate refresh for that house and resets its cache entry
 - The cache is in-memory, so restarting the app clears it
-- `people[].defaultRoomId` marks which room a known housemate occupies when a `presence.in` event is parsed
+- `people[].defaultRoomId` marks which room a known housemate occupies when a `presence.in` event is parsed, unless the title explicitly says `not staying`
 - Calendar cache is keyed by `siteId`, so Tokyo and Taiwan refresh independently
 
 Viewer page access:
@@ -179,6 +181,7 @@ Viewer page access:
 - `viewerAccess.mode: "password"` requires `VIEWER_PASSWORD` in env
 - successful unlock stores an httpOnly cookie so viewers do not need to re-enter the password on every request
 - viewer access is deployment-global today, not scoped per house
+- `site.branding.faviconPath` is a per-house app-relative path to a favicon asset served from `public/`
 
 ## Local Database
 

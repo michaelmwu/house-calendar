@@ -54,6 +54,34 @@ describe("parseEventTitle", () => {
     expect(parsed.roomId).toBe("guest-room");
   });
 
+  test("treats parenthetical tentative stay markers as tentative room stays", () => {
+    const parsed = parseEventTitle(
+      "Kirika stays (guest room, tentative)",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("stay");
+    expect(parsed.scope).toBe("room");
+    expect(parsed.guestName).toBe("Kirika");
+    expect(parsed.roomId).toBe("guest-room");
+    expect(parsed.stayStatus).toBe("tentative");
+    expect(parsed.confidence).toBe(0.97);
+  });
+
+  test("treats maybe stays as tentative room stays", () => {
+    const parsed = parseEventTitle(
+      "Kirika maybe stays (guest room)",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("stay");
+    expect(parsed.scope).toBe("room");
+    expect(parsed.guestName).toBe("Kirika");
+    expect(parsed.roomId).toBe("guest-room");
+    expect(parsed.stayStatus).toBe("tentative");
+    expect(parsed.confidence).toBe(0.97);
+  });
+
   test("parses templated public housemate travel", () => {
     const parsed = parseEventTitle(
       "Michael out of Japan (Europe)",
@@ -87,12 +115,40 @@ describe("parseEventTitle", () => {
     expect(parsed.visibility).toBe("public");
   });
 
+  test("supports bracket shorthand for local presence without staying", () => {
+    const parsed = parseEventTitle(
+      "Michael [Tokyo, not staying]",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("presence");
+    expect(parsed.presenceState).toBe("in");
+    expect(parsed.location).toBe("tokyo");
+    expect(parsed.occupiesDefaultRoom).toBe(false);
+    expect(parsed.personId).toBe("michael");
+    expect(parsed.visibility).toBe("public");
+  });
+
   test("supports text shorthand for templated presence", () => {
     const parsed = parseEventTitle("Michael in Tokyo", exampleHouseConfig);
 
     expect(parsed.type).toBe("presence");
     expect(parsed.presenceState).toBe("in");
     expect(parsed.location).toBe("tokyo");
+    expect(parsed.personId).toBe("michael");
+    expect(parsed.visibility).toBe("public");
+  });
+
+  test("supports text presence without staying", () => {
+    const parsed = parseEventTitle(
+      "Michael in Tokyo (not staying)",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("presence");
+    expect(parsed.presenceState).toBe("in");
+    expect(parsed.location).toBe("tokyo");
+    expect(parsed.occupiesDefaultRoom).toBe(false);
     expect(parsed.personId).toBe("michael");
     expect(parsed.visibility).toBe("public");
   });
