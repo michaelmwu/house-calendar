@@ -66,17 +66,15 @@ function formatConfidence(confidence: number): string {
   return `${Math.round(confidence * 100)}% confidence`;
 }
 
-function describeInterpretation(
+export function describeInterpretation(
   parsed: ParsedCalendarEvent,
   houseConfig: HouseConfig,
   raw: RawCalendarEvent,
 ): string {
-  if (!raw.allDay && parsed.type === "unknown" && raw.visibility === "public") {
-    return "Timed day event shown on its start date without affecting availability.";
-  }
-
-  if (!raw.allDay && parsed.type === "unknown") {
-    return "Timed day event hidden from viewers because the source event is private or confidential.";
+  if (!raw.allDay) {
+    return raw.visibility === "public"
+      ? "Timed day event shown on its start date without affecting availability."
+      : "Timed day event hidden from viewers because the source event is private or confidential.";
   }
 
   if (parsed.type === "unknown") {
@@ -124,19 +122,23 @@ function describeInterpretation(
   return `${personLabel}: ${stateLabel}${occupancySuffix}`;
 }
 
-function buildParsedFieldRows(
+export function buildParsedFieldRows(
   parsed: ParsedCalendarEvent,
   houseConfig: HouseConfig,
   raw: RawCalendarEvent,
 ): Array<{ label: string; value: string }> {
-  if (!raw.allDay && parsed.type === "unknown") {
+  if (!raw.allDay) {
     return [
       {
-        label: "Day event",
+        label: "Viewer calendar",
         value:
           raw.visibility === "public"
             ? "Shown on the viewer calendar"
             : "Hidden from the viewer calendar (private/confidential)",
+      },
+      {
+        label: "Visibility",
+        value: raw.visibility,
       },
     ];
   }

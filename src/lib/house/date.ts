@@ -96,7 +96,7 @@ export function calendarDateInTimeZone(
 export function dateTimeInTimeZoneToIso(
   input: TimeZoneDateTimeInput,
   timeZone: string,
-): string {
+): string | null {
   const utcGuess = Date.UTC(
     input.year,
     input.month - 1,
@@ -118,8 +118,21 @@ export function dateTimeInTimeZoneToIso(
     adjustedOffset === initialOffset
       ? shiftedTimestamp
       : utcGuess - adjustedOffset;
+  const resolvedDate = new Date(timestamp);
+  const resolvedParts = getTimeZoneParts(resolvedDate, timeZone);
 
-  return new Date(timestamp).toISOString();
+  if (
+    Number(resolvedParts.year) !== input.year ||
+    Number(resolvedParts.month) !== input.month ||
+    Number(resolvedParts.day) !== input.day ||
+    Number(resolvedParts.hour) !== input.hour ||
+    Number(resolvedParts.minute) !== input.minute ||
+    Number(resolvedParts.second) !== input.second
+  ) {
+    return null;
+  }
+
+  return resolvedDate.toISOString();
 }
 
 export function formatCalendarDate(date: Date): string {

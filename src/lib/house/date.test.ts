@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { parseISO, startOfMonth } from "date-fns";
 import {
   currentDateInTimeZone,
+  dateTimeInTimeZoneToIso,
   formatCalendarDate,
   formatTimeInTimeZone,
 } from "./date";
@@ -29,5 +30,21 @@ describe("currentDateInTimeZone", () => {
     expect(formatTimeInTimeZone("2026-04-29T06:30:00.000Z", "Asia/Tokyo")).toBe(
       "3:30 PM",
     );
+  });
+
+  test("rejects nonexistent local wall-clock times during DST forward jumps", () => {
+    expect(
+      dateTimeInTimeZoneToIso(
+        {
+          year: 2026,
+          month: 3,
+          day: 8,
+          hour: 2,
+          minute: 30,
+          second: 0,
+        },
+        "America/Los_Angeles",
+      ),
+    ).toBeNull();
   });
 });
