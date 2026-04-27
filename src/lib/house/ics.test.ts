@@ -62,6 +62,38 @@ END:VCALENDAR`,
     ]);
   });
 
+  test("ignores checkout_day events that collapse to zero nights", () => {
+    const events = parseIcsCalendar(
+      `BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:stay-1
+SUMMARY:One-day checkout event
+DTSTART;VALUE=DATE:20260410
+DTEND;VALUE=DATE:20260411
+END:VEVENT
+BEGIN:VEVENT
+UID:stay-2
+SUMMARY:Someone stays (guest room)
+DTSTART;VALUE=DATE:20260412
+DTEND;VALUE=DATE:20260415
+END:VEVENT
+END:VCALENDAR`,
+      {
+        allDayEndDateMode: "checkout_day",
+      },
+    );
+
+    expect(events).toEqual([
+      {
+        id: "stay-2",
+        title: "Someone stays (guest room)",
+        startDate: "2026-04-12",
+        endDate: "2026-04-14",
+        allDay: true,
+      },
+    ]);
+  });
+
   test("ignores timed and cancelled events", () => {
     const events = parseIcsCalendar(`BEGIN:VCALENDAR
 BEGIN:VEVENT

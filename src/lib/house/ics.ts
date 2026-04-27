@@ -134,6 +134,10 @@ function buildRawEvent(
       ? normalizeAllDayCheckoutEnd(rawEndDate)
       : rawEndDate;
 
+  if (endDate <= startDate) {
+    return null;
+  }
+
   const uid = eventProperties.get("UID")?.[0]?.value?.trim();
 
   return rawCalendarEventSchema.parse({
