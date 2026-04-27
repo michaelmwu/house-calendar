@@ -1,5 +1,5 @@
 import { resetAdminPassword } from "../src/lib/server/auth";
-import { closeDb } from "../src/lib/server/db";
+import { closeDb, withDatabaseStartupRetry } from "../src/lib/server/db";
 
 type ParsedArgs = {
   email: string;
@@ -69,10 +69,14 @@ export function parseAdminResetPasswordArgs(
 
 async function main() {
   const { email, password } = parseAdminResetPasswordArgs();
-  const result = await resetAdminPassword({
-    email,
-    password,
-  });
+  const result = await withDatabaseStartupRetry(
+    () =>
+      resetAdminPassword({
+        email,
+        password,
+      }),
+    { operationName: "admin password reset" },
+  );
 
   if (!result.ok) {
     throw new Error(result.error);

@@ -1,8 +1,10 @@
 import { createBootstrapCode } from "../src/lib/server/auth";
-import { closeDb } from "../src/lib/server/db";
+import { closeDb, withDatabaseStartupRetry } from "../src/lib/server/db";
 
 async function main() {
-  const result = await createBootstrapCode();
+  const result = await withDatabaseStartupRetry(createBootstrapCode, {
+    operationName: "bootstrap code generation",
+  });
 
   console.log("Generated one-time admin bootstrap code.");
   console.log(`Code: ${result.code}`);
