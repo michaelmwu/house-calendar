@@ -56,6 +56,61 @@ describe("deriveDailyAvailability", () => {
     expect(days[0]?.status).toBe("unknown");
   });
 
+  test("marks tentative room stays without promoting them to confirmed occupancy", () => {
+    const days = deriveDailyAvailability(
+      exampleHouseConfig,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-tentative-room-stay",
+          title: "Kirika stays (guest room, tentative)",
+          startDate: "2026-04-19",
+          endDate: "2026-04-21",
+          allDay: true,
+        }),
+      ],
+      "2026-04-19",
+      2,
+    );
+
+    expect(days[0]?.status).toBe("tentative");
+    expect(days[1]?.status).toBe("tentative");
+    expect(
+      days[0]?.rooms.find((room) => room.id === "guest-room")?.status,
+    ).toBe("tentative");
+    expect(days[0]?.rooms.find((room) => room.id === "my-room")?.status).toBe(
+      "free",
+    );
+  });
+
+  test("confirmed occupancy overrides tentative room stays on the same day", () => {
+    const days = deriveDailyAvailability(
+      exampleHouseConfig,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-tentative-room-stay",
+          title: "Kirika maybe stays (guest room)",
+          startDate: "2026-04-19",
+          endDate: "2026-04-20",
+          allDay: true,
+        }),
+        rawCalendarEventSchema.parse({
+          id: "evt-confirmed-room-stay",
+          title: "Someone stays (guest room)",
+          startDate: "2026-04-19",
+          endDate: "2026-04-20",
+          allDay: true,
+        }),
+      ],
+      "2026-04-19",
+      1,
+    );
+
+    expect(days[0]?.status).toBe("partial");
+    expect(
+      days[0]?.rooms.find((room) => room.id === "guest-room")?.status,
+    ).toBe("occupied");
+  });
+
   test("ignores timed events when deriving all-day availability", () => {
     const days = deriveDailyAvailability(
       exampleHouseConfig,
@@ -213,6 +268,34 @@ describe("deriveDailyAvailability", () => {
     expect(
       days[0]?.rooms.find((room) => room.id === "guest-room")?.status,
     ).toBe("free");
+  });
+
+  test("presence.in with not staying keeps the default room free", () => {
+    const days = deriveDailyAvailability(
+      exampleHouseConfig,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-michael-in-not-staying",
+          title: "Michael in Tokyo (not staying)",
+          startDate: "2026-04-19",
+          endDate: "2026-04-21",
+          allDay: true,
+        }),
+      ],
+      "2026-04-19",
+      2,
+    );
+
+    expect(days[0]?.status).toBe("available");
+    expect(days[0]?.rooms.find((room) => room.id === "my-room")?.status).toBe(
+      "free",
+    );
+    expect(
+      days[0]?.presence.find((person) => person.personId === "michael"),
+    ).toMatchObject({
+      label: "elsewhere",
+      state: "in",
+    });
   });
 
   test("presence.out does not occupy the known housemate default room", () => {

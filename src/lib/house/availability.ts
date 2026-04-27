@@ -11,6 +11,7 @@ import {
 
 type WorkingDay = Omit<DailyAvailability, "status"> & {
   hasUnknownStay: boolean;
+  presenceOccupiesDefaultRoomByPerson: Map<string, boolean>;
   presenceStatesByPerson: Map<string, "in" | "out" | "unknown">;
   rooms: DailyAvailability["rooms"];
   presence: DailyAvailability["presence"];
@@ -20,6 +21,21 @@ type InferredDepartureLabel = {
   checkoutDate: string;
   personId: string;
 };
+
+function mergeRoomStatus(
+  currentStatus: "free" | "tentative" | "occupied",
+  nextStatus: "tentative" | "occupied",
+): "free" | "tentative" | "occupied" {
+  if (currentStatus === "occupied" || nextStatus === "occupied") {
+    return "occupied";
+  }
+
+  if (currentStatus === "tentative" || nextStatus === "tentative") {
+    return "tentative";
+  }
+
+  return "free";
+}
 
 function asCalendarDate(value: string): string {
   const match = value.match(/^\d{4}-\d{2}-\d{2}/);
@@ -46,11 +62,16 @@ function enumerateDays(startDate: string, endDateExclusive: string): string[] {
 
 function getPublicPresenceLabel(
   presenceState: "in" | "out" | "unknown",
+  occupiesDefaultRoom: boolean,
   eventStartDate: string,
   eventDay: string,
 ): string | undefined {
   if (presenceState === "out" && eventDay === asCalendarDate(eventStartDate)) {
     return "leaving";
+  }
+
+  if (presenceState === "in" && !occupiesDefaultRoom) {
+    return "elsewhere";
   }
 
   return undefined;
@@ -107,6 +128,7 @@ export function deriveDailyAvailability(
           name: person.name,
           state: "unknown" as const,
         })),
+      presenceOccupiesDefaultRoomByPerson: new Map(),
       presenceStatesByPerson: new Map(),
     }),
   );
@@ -141,17 +163,25 @@ export function deriveDailyAvailability(
       }
 
       if (parsed.type === "stay") {
+        const stayRoomStatus =
+          parsed.stayStatus === "tentative" ? "tentative" : "occupied";
+
         if (parsed.scope === "house") {
           day.rooms = day.rooms.map((room) => ({
             ...room,
-            status: "occupied",
+            status: mergeRoomStatus(room.status, stayRoomStatus),
           }));
           continue;
         }
 
         if (parsed.scope === "room" && parsed.roomId) {
           day.rooms = day.rooms.map((room) =>
-            room.id === parsed.roomId ? { ...room, status: "occupied" } : room,
+            room.id === parsed.roomId
+              ? {
+                  ...room,
+                  status: mergeRoomStatus(room.status, stayRoomStatus),
+                }
+              : room,
           );
           continue;
         }
@@ -165,6 +195,10 @@ export function deriveDailyAvailability(
         parsed.presenceState
       ) {
         day.presenceStatesByPerson.set(parsed.personId, parsed.presenceState);
+        day.presenceOccupiesDefaultRoomByPerson.set(
+          parsed.personId,
+          parsed.presenceState === "in" && parsed.occupiesDefaultRoom !== false,
+        );
       }
 
       if (
@@ -175,6 +209,7 @@ export function deriveDailyAvailability(
       ) {
         const label = getPublicPresenceLabel(
           parsed.presenceState,
+          parsed.presenceState === "in" && parsed.occupiesDefaultRoom !== false,
           event.startDate,
           eventDay,
         );
@@ -215,6 +250,7 @@ export function deriveDailyAvailability(
     const occupiedPresenceRoomIds = new Set(
       config.people.flatMap((person) =>
         day.presenceStatesByPerson.get(person.id) === "in" &&
+        day.presenceOccupiesDefaultRoomByPerson.get(person.id) !== false &&
         person.defaultRoomId
           ? [person.defaultRoomId]
           : [],
@@ -228,10 +264,15 @@ export function deriveDailyAvailability(
     const occupiedRooms = rooms.filter(
       (room) => room.status === "occupied",
     ).length;
+    const tentativeRooms = rooms.filter(
+      (room) => room.status === "tentative",
+    ).length;
     const status = day.hasUnknownStay
       ? "unknown"
       : occupiedRooms === 0
-        ? "available"
+        ? tentativeRooms === 0
+          ? "available"
+          : "tentative"
         : occupiedRooms === day.rooms.length
           ? "unavailable"
           : "partial";

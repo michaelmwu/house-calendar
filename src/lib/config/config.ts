@@ -33,6 +33,13 @@ const instanceSiteSchema = z.object({
   branding: z.object({
     title: z.string(),
     description: z.string().optional(),
+    faviconPath: z
+      .string()
+      .regex(/^\/(?!\/).+/, {
+        message:
+          "faviconPath must be an app-relative path like /branding/default/favicon.png.",
+      })
+      .optional(),
     themeColor: z.string().optional(),
     logoUrl: z.string().optional(),
   }),

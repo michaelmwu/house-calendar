@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { clearAdminSessionCookie, revokeAdminSession } from "@/lib/server/auth";
 import { buildRequestUrl } from "@/lib/server/request-url";
 

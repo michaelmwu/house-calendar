@@ -78,6 +78,7 @@ Good fits for deterministic logic:
 - title normalization
 - room and person alias matching
 - regex-based parsing rules
+- tentative stay markers embedded in event titles
 - date expansion
 - occupancy derivation
 - privacy masking
@@ -241,6 +242,7 @@ Examples:
 - per-house parsing rules
 - per-house calendar interpretation mode
 - per-house branding
+- per-house local favicon asset paths
 - per-house share policy defaults
 
 #### Secrets, env only
@@ -547,6 +549,7 @@ The privacy model is not a frontend concern. It must be built into the data pipe
 - raw titles should never be directly rendered to public viewers
 - guest identities should be masked by default
 - housemate presence should only be shown when explicitly configured
+- housemate location presence does not always imply room occupancy; explicit `not staying` annotations must keep the default room free
 - sensitive calendar source values must be treated as secrets
 - logs should not dump ICS URLs or signed share tokens
 
@@ -574,6 +577,9 @@ If this rule breaks, occupancy will be wrong.
 ## Request Flow Model
 
 Requests should not reserve dates on submission.
+
+Tentative stay titles imported from calendars are a separate concept. They
+should render as tentative availability markers, not as pending request state.
 
 Target flow:
 

@@ -184,9 +184,11 @@ export const parsedCalendarEventSchema = z.object({
   scope: parsedScopeSchema,
   personId: z.string().optional(),
   guestName: z.string().optional(),
+  stayStatus: z.enum(["confirmed", "tentative"]).optional(),
   roomId: z.string().optional(),
   location: z.string().optional(),
   presenceState: presenceStateSchema.optional(),
+  occupiesDefaultRoom: z.boolean().optional(),
   visibility: visibilitySchema,
   confidence: z.number().min(0).max(1),
 });
@@ -194,7 +196,7 @@ export const parsedCalendarEventSchema = z.object({
 export const dayRoomStatusSchema = z.object({
   id: z.string(),
   name: z.string(),
-  status: z.enum(["free", "occupied"]),
+  status: z.enum(["free", "tentative", "occupied"]),
 });
 
 export const dayPresenceSchema = z.object({
@@ -206,7 +208,13 @@ export const dayPresenceSchema = z.object({
 
 export const dailyAvailabilitySchema = z.object({
   date: z.string(),
-  status: z.enum(["available", "partial", "unavailable", "unknown"]),
+  status: z.enum([
+    "available",
+    "tentative",
+    "partial",
+    "unavailable",
+    "unknown",
+  ]),
   rooms: z.array(dayRoomStatusSchema),
   presence: z.array(dayPresenceSchema),
 });

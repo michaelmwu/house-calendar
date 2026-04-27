@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { getDefaultSiteId, getSiteConfig } from "@/lib/config/config";
+import { loadAppConfig } from "@/lib/server/app-config";
+import { buildFallbackMetadata, buildSiteMetadata } from "@/lib/site-metadata";
 import { cn } from "@/lib/utils";
 
 const geist = Geist({
@@ -19,11 +22,19 @@ const monoFont = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
-export const metadata: Metadata = {
-  description:
-    "Private house occupancy, public availability, and lightweight stay requests.",
-  title: "House Availability",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const appConfig = await loadAppConfig();
+  const defaultSiteConfig = getSiteConfig(
+    appConfig,
+    getDefaultSiteId(appConfig),
+  );
+
+  if (!defaultSiteConfig) {
+    return buildFallbackMetadata();
+  }
+
+  return buildSiteMetadata(defaultSiteConfig.site.branding);
+}
 
 export default function RootLayout({
   children,

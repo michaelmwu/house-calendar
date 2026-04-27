@@ -94,6 +94,37 @@ describe("buildDayAriaLabel", () => {
     expect(label).toBe("May 1, 2026. Partially occupied. 1 room occupied");
   });
 
+  test("describes tentative days distinctly from confirmed occupancy", () => {
+    const label = buildDayAriaLabel({
+      date: "2026-05-01",
+      presence: [],
+      rooms: [
+        { id: "my-room", name: "My room", status: "free" },
+        { id: "guest-room", name: "Guest room", status: "tentative" },
+      ],
+      status: "tentative",
+    });
+
+    expect(label).toBe("May 1, 2026. Tentative stay. 1 room tentative");
+  });
+
+  test("describes mixed occupied and tentative rooms distinctly", () => {
+    const label = buildDayAriaLabel({
+      date: "2026-05-01",
+      presence: [],
+      rooms: [
+        { id: "my-room", name: "My room", status: "occupied" },
+        { id: "guest-room", name: "Guest room", status: "tentative" },
+        { id: "office", name: "Office", status: "free" },
+      ],
+      status: "partial",
+    });
+
+    expect(label).toBe(
+      "May 1, 2026. Partially occupied. 1 room occupied, 1 room tentative",
+    );
+  });
+
   test("uses room-level wording when the house has a single room", () => {
     const label = buildDayAriaLabel({
       date: "2026-05-01",

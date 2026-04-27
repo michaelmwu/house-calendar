@@ -72,9 +72,10 @@ function describeInterpretation(
 
   if (parsed.type === "stay") {
     const guestPrefix = parsed.guestName ? `${parsed.guestName}: ` : "";
+    const stayPrefix = parsed.stayStatus === "tentative" ? "Tentative " : "";
 
     if (parsed.scope === "house") {
-      return `${guestPrefix}Whole-house stay`;
+      return `${guestPrefix}${stayPrefix}whole-house stay`;
     }
 
     if (parsed.scope === "room" && parsed.roomId) {
@@ -82,10 +83,10 @@ function describeInterpretation(
         (candidate) => candidate.id === parsed.roomId,
       );
 
-      return `${guestPrefix}Room stay: ${room?.name ?? parsed.roomId}`;
+      return `${guestPrefix}${stayPrefix}room stay: ${room?.name ?? parsed.roomId}`;
     }
 
-    return `${guestPrefix}Stay with unknown scope`;
+    return `${guestPrefix}${stayPrefix}stay with unknown scope`;
   }
 
   const person = parsed.personId
@@ -98,12 +99,16 @@ function describeInterpretation(
       : parsed.presenceState === "out"
         ? "Out"
         : "Unknown";
+  const occupancySuffix =
+    parsed.presenceState === "in" && parsed.occupiesDefaultRoom === false
+      ? " (not staying)"
+      : "";
 
   if (parsed.location) {
-    return `${personLabel}: ${stateLabel} (${parsed.location})`;
+    return `${personLabel}: ${stateLabel} (${parsed.location})${occupancySuffix}`;
   }
 
-  return `${personLabel}: ${stateLabel}`;
+  return `${personLabel}: ${stateLabel}${occupancySuffix}`;
 }
 
 function buildParsedFieldRows(
@@ -131,6 +136,11 @@ function buildParsedFieldRows(
     if (parsed.scope === "house") {
       rows.push({ label: "Scope", value: "Whole house" });
     }
+
+    rows.push({
+      label: "Stay status",
+      value: parsed.stayStatus === "tentative" ? "Tentative" : "Confirmed",
+    });
 
     if (parsed.scope === "room" && room) {
       rows.push({ label: "Room", value: room.name });
@@ -160,6 +170,13 @@ function buildParsedFieldRows(
 
     if (parsed.presenceState) {
       rows.push({ label: "Presence state", value: parsed.presenceState });
+    }
+
+    if (parsed.presenceState === "in") {
+      rows.push({
+        label: "Occupies default room",
+        value: parsed.occupiesDefaultRoom === false ? "No" : "Yes",
+      });
     }
 
     if (parsed.location) {
