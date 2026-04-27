@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   description:
-    "Owner admin for house-calendar: auth, sync controls, and parser diagnostics.",
+    "Owner admin for House Availability: auth, sync controls, and parser diagnostics.",
   title: {
     default: "Admin",
-    template: "%s | house-calendar",
+    template: "%s | House Availability",
   },
 };
 

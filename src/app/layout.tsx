@@ -22,7 +22,7 @@ const monoFont = IBM_Plex_Mono({
 export const metadata: Metadata = {
   description:
     "Private house occupancy, public availability, and lightweight stay requests.",
-  title: "house-calendar",
+  title: "House Availability",
 };
 
 export default function RootLayout({
