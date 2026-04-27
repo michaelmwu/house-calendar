@@ -7,6 +7,16 @@ import {
   sharePolicySchema,
 } from "@/lib/house/types";
 
+const siteIdSchema = z
+  .string()
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message:
+      "Site id must be a lowercase URL slug containing only letters, numbers, and hyphens.",
+  })
+  .refine((value) => value !== "admin", {
+    message: 'Site id "admin" is reserved.',
+  });
+
 const instancePersonSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -16,7 +26,7 @@ const instancePersonSchema = z.object({
 });
 
 const instanceSiteSchema = z.object({
-  id: z.string(),
+  id: siteIdSchema,
   houseName: z.string(),
   ownerName: z.string().optional(),
   timezone: z.string(),

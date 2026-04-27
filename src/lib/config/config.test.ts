@@ -135,6 +135,40 @@ describe("appConfigSchema", () => {
     ).toThrow(/Duplicate site id/);
   });
 
+  test("rejects site ids that are not route-safe slugs", () => {
+    expect(() =>
+      appConfigSchema.parse({
+        ...baseConfig,
+        sites: [
+          {
+            ...baseSiteConfig,
+            site: {
+              ...baseSiteConfig.site,
+              id: "tokyo/main",
+            },
+          },
+        ],
+      }),
+    ).toThrow(/lowercase URL slug/);
+  });
+
+  test('rejects reserved site ids such as "admin"', () => {
+    expect(() =>
+      appConfigSchema.parse({
+        ...baseConfig,
+        sites: [
+          {
+            ...baseSiteConfig,
+            site: {
+              ...baseSiteConfig.site,
+              id: "admin",
+            },
+          },
+        ],
+      }),
+    ).toThrow(/reserved/);
+  });
+
   test("rejects unknown defaultSiteId", () => {
     expect(() =>
       appConfigSchema.parse({
