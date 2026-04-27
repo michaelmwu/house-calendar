@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getDefaultSiteId } from "@/lib/config/config";
+import { loadAppConfig } from "@/lib/server/app-config";
 import { bootstrapAdmin, setAdminSessionCookie } from "@/lib/server/auth";
 
 function redirectWithError(request: Request, error: string) {
@@ -8,6 +10,7 @@ function redirectWithError(request: Request, error: string) {
 }
 
 export async function POST(request: Request) {
+  const appConfig = await loadAppConfig();
   const formData = await request.formData();
   const result = await bootstrapAdmin({
     bootstrapCode: String(formData.get("bootstrapCode") ?? ""),
@@ -19,7 +22,10 @@ export async function POST(request: Request) {
     return redirectWithError(request, result.error);
   }
 
-  const response = NextResponse.redirect(new URL("/admin", request.url), 303);
+  const response = NextResponse.redirect(
+    new URL(`/admin/${getDefaultSiteId(appConfig)}`, request.url),
+    303,
+  );
   setAdminSessionCookie(response, result.session);
   return response;
 }

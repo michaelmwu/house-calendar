@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSiteConfig } from "@/lib/config/config";
 import { loadAppConfig } from "@/lib/server/app-config";
 import { serverEnv } from "@/lib/server/env";
 import {
@@ -7,9 +8,17 @@ import {
   verifyViewerPassword,
 } from "@/lib/server/viewer-access";
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ siteId: string }> },
+) {
+  const { siteId } = await params;
   const config = await loadAppConfig();
-  const redirectUrl = new URL("/", request.url);
+  const redirectUrl = new URL(`/${siteId}`, request.url);
+
+  if (!getSiteConfig(config, siteId)) {
+    return new NextResponse("Not found", { status: 404 });
+  }
 
   if (!isViewerAccessPasswordEnabled(config)) {
     return NextResponse.redirect(redirectUrl, 303);

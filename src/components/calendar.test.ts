@@ -67,4 +67,15 @@ describe("buildDayAriaLabel", () => {
 
     expect(label).toBe("May 1, 2026. Partially occupied. 1 room occupied");
   });
+
+  test("uses room-level wording when the house has a single room", () => {
+    const label = buildDayAriaLabel({
+      date: "2026-05-01",
+      presence: [],
+      rooms: [{ id: "studio", name: "Studio", status: "occupied" }],
+      status: "unavailable",
+    });
+
+    expect(label).toBe("May 1, 2026. Occupied. Room occupied");
+  });
 });

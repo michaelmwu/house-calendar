@@ -4,7 +4,12 @@ import {
   parseISO,
   startOfMonth,
 } from "date-fns";
-import { appConfigSchema, configToHouseConfig } from "@/lib/config/config";
+import {
+  appConfigSchema,
+  configToHouseConfig,
+  getDefaultSiteId,
+  getSiteConfig,
+} from "@/lib/config/config";
 import exampleConfig from "../../../config/config.example.json";
 import { deriveDailyAvailability } from "./availability";
 import { currentDateInTimeZone, formatCalendarDate } from "./date";
@@ -15,9 +20,18 @@ import {
   rawCalendarEventSchema,
 } from "./types";
 
-export const exampleHouseConfig: HouseConfig = configToHouseConfig(
-  appConfigSchema.parse(exampleConfig),
+const exampleAppConfig = appConfigSchema.parse(exampleConfig);
+const exampleSiteConfig = getSiteConfig(
+  exampleAppConfig,
+  getDefaultSiteId(exampleAppConfig),
 );
+
+if (!exampleSiteConfig) {
+  throw new Error("config.example.json must include a default site.");
+}
+
+export const exampleHouseConfig: HouseConfig =
+  configToHouseConfig(exampleSiteConfig);
 
 function asDate(dateInput: Date | string): Date {
   return typeof dateInput === "string" ? parseISO(dateInput) : dateInput;

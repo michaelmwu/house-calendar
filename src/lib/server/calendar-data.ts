@@ -1,7 +1,13 @@
 import "server-only";
 
 import { differenceInCalendarDays, parseISO, startOfMonth } from "date-fns";
-import { type AppConfig, configToHouseConfig } from "@/lib/config/config";
+import {
+  type AppConfig,
+  configToHouseConfig,
+  getDefaultSiteId,
+  getSiteConfig,
+  type SiteConfig,
+} from "@/lib/config/config";
 import { deriveDailyAvailability } from "@/lib/house/availability";
 import { currentDateInTimeZone, formatCalendarDate } from "@/lib/house/date";
 import { parseIcsCalendar } from "@/lib/house/ics";
@@ -45,10 +51,12 @@ type LoadCalendarDataOptions = {
   forceRefresh?: boolean;
   houseConfig?: HouseConfig;
   now?: Date;
+  siteConfig?: SiteConfig;
+  siteId?: string;
 };
 
-let calendarDataCache: CalendarDataCacheEntry | null = null;
-let calendarDataInFlight: Promise<CalendarDataResult> | null = null;
+const calendarDataCache = new Map<string, CalendarDataCacheEntry>();
+const calendarDataInFlight = new Map<string, Promise<CalendarDataResult>>();
 
 function getCacheTtlMinutes(): number {
   return serverEnv.ICS_SYNC_TTL_MINUTES ?? DEFAULT_ICS_SYNC_TTL_MINUTES;
@@ -72,11 +80,11 @@ function withCacheMetadata(
 }
 
 async function fetchCalendarDataWithConfig({
-  appConfig,
+  siteConfig,
   houseConfig,
   now,
 }: {
-  appConfig: AppConfig;
+  siteConfig: SiteConfig;
   houseConfig: HouseConfig;
   now: Date;
 }): Promise<CalendarDataBase> {
@@ -85,7 +93,7 @@ async function fetchCalendarDataWithConfig({
   const calendarStart = startOfMonth(today);
   const nights = differenceInCalendarDays(today, calendarStart) + 365;
   const calendarResults = await Promise.all(
-    appConfig.calendars.map(async (calendar) => {
+    siteConfig.calendars.map(async (calendar) => {
       const url = resolveCalendarUrl(calendar);
 
       if (!url) {
@@ -172,19 +180,31 @@ export async function loadCalendarData({
   forceRefresh = false,
   houseConfig,
   now = new Date(),
+  siteConfig,
+  siteId,
 }: LoadCalendarDataOptions = {}): Promise<CalendarDataResult> {
   const nowMs = now.getTime();
+  const resolvedAppConfig = appConfig ?? (await loadAppConfig());
+  const resolvedSiteId =
+    siteId ?? siteConfig?.site.id ?? getDefaultSiteId(resolvedAppConfig);
+  const resolvedSiteConfig =
+    siteConfig ?? getSiteConfig(resolvedAppConfig, resolvedSiteId);
 
-  if (
-    !forceRefresh &&
-    calendarDataCache &&
-    calendarDataCache.expiresAt > nowMs
-  ) {
-    return calendarDataCache.result;
+  if (!resolvedSiteConfig) {
+    throw new Error(`Unknown site "${resolvedSiteId}".`);
+  }
+  const resolvedHouseConfig =
+    houseConfig ?? configToHouseConfig(resolvedSiteConfig);
+  const cachedEntry = calendarDataCache.get(resolvedSiteId);
+
+  if (!forceRefresh && cachedEntry && cachedEntry.expiresAt > nowMs) {
+    return cachedEntry.result;
   }
 
-  if (calendarDataInFlight && !forceRefresh) {
-    return calendarDataInFlight;
+  const inFlightPromise = calendarDataInFlight.get(resolvedSiteId);
+
+  if (inFlightPromise && !forceRefresh) {
+    return inFlightPromise;
   }
 
   const inFlightState: {
@@ -194,39 +214,38 @@ export async function loadCalendarData({
   };
 
   inFlightState.promise = (async () => {
-    const resolvedAppConfig = appConfig ?? (await loadAppConfig());
-    const resolvedHouseConfig =
-      houseConfig ?? configToHouseConfig(resolvedAppConfig);
     const result = withCacheMetadata(
       await fetchCalendarDataWithConfig({
-        appConfig: resolvedAppConfig,
+        siteConfig: resolvedSiteConfig,
         houseConfig: resolvedHouseConfig,
         now,
       }),
       now,
     );
 
-    if (calendarDataInFlight === inFlightState.promise) {
-      calendarDataCache = {
+    if (calendarDataInFlight.get(resolvedSiteId) === inFlightState.promise) {
+      calendarDataCache.set(resolvedSiteId, {
         expiresAt: Date.parse(result.nextRefreshAt),
         result,
-      };
+      });
     }
 
     return result;
   })();
   const inFlight = inFlightState.promise;
-  calendarDataInFlight = inFlight;
+  calendarDataInFlight.set(resolvedSiteId, inFlight);
 
   try {
     return await inFlight;
   } finally {
-    if (calendarDataInFlight === inFlight) {
-      calendarDataInFlight = null;
+    if (calendarDataInFlight.get(resolvedSiteId) === inFlight) {
+      calendarDataInFlight.delete(resolvedSiteId);
     }
   }
 }
 
-export async function refreshCalendarData(): Promise<CalendarDataResult> {
-  return loadCalendarData({ forceRefresh: true });
+export async function refreshCalendarData(
+  siteId?: string,
+): Promise<CalendarDataResult> {
+  return loadCalendarData({ forceRefresh: true, siteId });
 }

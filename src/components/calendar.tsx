@@ -40,6 +40,8 @@ const statusDotClasses = {
   unknown: "bg-stone-400",
 } as const;
 
+type StatusKey = keyof typeof statusDotClasses;
+
 type CalendarCell = {
   id: string;
   dateLabel?: string;
@@ -141,22 +143,29 @@ export function buildMonths(days: DailyAvailability[]): CalendarMonth[] {
 }
 
 function getDayStatusLabel(day: DailyAvailability): string {
+  const hasSingleRoom = day.rooms.length === 1;
+
   switch (day.status) {
     case "available":
       return "Available";
     case "partial":
       return "Partially occupied";
     case "unavailable":
-      return "Whole house occupied";
+      return hasSingleRoom ? "Occupied" : "Whole house occupied";
     case "unknown":
       return "Needs interpretation";
   }
 }
 
 function formatRoomSummary(day: DailyAvailability): string {
+  const hasSingleRoom = day.rooms.length === 1;
   const occupiedCount = day.rooms.filter(
     (room) => room.status === "occupied",
   ).length;
+
+  if (hasSingleRoom) {
+    return occupiedCount === 0 ? "Room free" : "Room occupied";
+  }
 
   if (occupiedCount === 0) {
     return "All rooms free";
@@ -343,6 +352,19 @@ export function Calendar({
   const previewDay = previewDate
     ? (days.find((day) => day.date === previewDate) ?? null)
     : null;
+  const hasSingleRoom = days[0]?.rooms.length === 1;
+  const legendItems: ReadonlyArray<readonly [StatusKey, string]> = hasSingleRoom
+    ? [
+        ["available", "Room free"],
+        ["unavailable", "Room occupied"],
+        ["unknown", "Needs interpretation"],
+      ]
+    : [
+        ["available", "All rooms free"],
+        ["partial", "At least one room occupied"],
+        ["unavailable", "Whole house occupied"],
+        ["unknown", "Needs interpretation"],
+      ];
   const upcomingBusyDays = days
     .filter((day) => !isPastDate(day.date, today) && day.status !== "available")
     .slice(0, 6);
@@ -539,20 +561,22 @@ export function Calendar({
             {formatRoomSummary(selectedDay)}
           </p>
 
-          <div className="mt-5 rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <span>Whole house</span>
-              <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
-                {selectedDay.status}
-              </span>
+          {hasSingleRoom ? null : (
+            <div className="mt-5 rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span>Whole house</span>
+                <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
+                  {selectedDay.status}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-[var(--app-muted)]">
+                {formatNextFreeDateLabel(
+                  findNextWholeHouseFreeDate(days, selectedDay.date),
+                  selectedDay.date,
+                )}
+              </p>
             </div>
-            <p className="mt-1 text-xs text-[var(--app-muted)]">
-              {formatNextFreeDateLabel(
-                findNextWholeHouseFreeDate(days, selectedDay.date),
-                selectedDay.date,
-              )}
-            </p>
-          </div>
+          )}
 
           <div className="mt-5 space-y-2">
             {selectedDay.rooms.map((room) => (
@@ -598,14 +622,7 @@ export function Calendar({
             Legend
           </p>
           <div className="mt-4 grid gap-2">
-            {(
-              [
-                ["available", "All rooms free"],
-                ["partial", "At least one room occupied"],
-                ["unavailable", "Whole house occupied"],
-                ["unknown", "Needs interpretation"],
-              ] as const
-            ).map(([status, label]) => (
+            {legendItems.map(([status, label]) => (
               <div key={status} className="flex items-center gap-3 text-sm">
                 <span
                   className={`h-3 w-3 rounded-full ${statusDotClasses[status]}`}

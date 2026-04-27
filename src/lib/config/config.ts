@@ -55,10 +55,9 @@ export const appCalendarSchema = z.union([
   instanceCalendarUrlSchema,
 ]);
 
-export const appConfigSchema = z
+export const siteConfigSchema = z
   .object({
     site: instanceSiteSchema,
-    viewerAccess: viewerAccessSchema.default({ mode: "public" }),
     calendars: z.array(appCalendarSchema).min(1),
     rooms: z.array(roomSchema),
     people: z.array(instancePersonSchema),
@@ -81,11 +80,57 @@ export const appConfigSchema = z
     }
   });
 
+export const appConfigSchema = z
+  .object({
+    defaultSiteId: z.string().optional(),
+    viewerAccess: viewerAccessSchema.default({ mode: "public" }),
+    sites: z.array(siteConfigSchema).min(1),
+  })
+  .superRefine((config, ctx) => {
+    const siteIds = new Set<string>();
+
+    for (const [index, siteConfig] of config.sites.entries()) {
+      const siteId = siteConfig.site.id;
+
+      if (siteIds.has(siteId)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Duplicate site id "${siteId}".`,
+          path: ["sites", index, "site", "id"],
+        });
+      }
+
+      siteIds.add(siteId);
+    }
+
+    if (config.defaultSiteId && !siteIds.has(config.defaultSiteId)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Unknown defaultSiteId "${config.defaultSiteId}".`,
+        path: ["defaultSiteId"],
+      });
+    }
+  });
+
 export type AppConfig = z.infer<typeof appConfigSchema>;
 export type AppCalendar = z.infer<typeof appCalendarSchema>;
+export type SiteConfig = z.infer<typeof siteConfigSchema>;
 
-export function configToHouseConfig(configInput: AppConfig) {
+export function getDefaultSiteId(configInput: AppConfig): string {
   const config = appConfigSchema.parse(configInput);
+  return config.defaultSiteId ?? config.sites[0]?.site.id ?? "";
+}
+
+export function getSiteConfig(
+  configInput: AppConfig,
+  siteId: string,
+): SiteConfig | undefined {
+  const config = appConfigSchema.parse(configInput);
+  return config.sites.find((siteConfig) => siteConfig.site.id === siteId);
+}
+
+export function configToHouseConfig(configInput: SiteConfig) {
+  const config = siteConfigSchema.parse(configInput);
 
   return houseConfigSchema.parse({
     id: config.site.id,
