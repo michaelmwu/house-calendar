@@ -1,10 +1,14 @@
-import { formatISO } from "date-fns";
+import { addDays, formatISO, parseISO } from "date-fns";
 import { type RawCalendarEvent, rawCalendarEventSchema } from "./types";
 
 type ParsedIcsProperty = {
   name: string;
   params: Map<string, string>;
   value: string;
+};
+
+type ParseIcsCalendarOptions = {
+  allDayEndDateMode?: "calendar_days" | "checkout_day";
 };
 
 function unfoldIcsLines(input: string): string[] {
@@ -91,9 +95,14 @@ function isAllDayProperty(property: ParsedIcsProperty): boolean {
   return property.params.get("VALUE")?.toUpperCase() === "DATE";
 }
 
+function normalizeAllDayCheckoutEnd(date: string): string {
+  return formatISO(addDays(parseISO(date), -1), { representation: "date" });
+}
+
 function buildRawEvent(
   eventProperties: Map<string, ParsedIcsProperty[]>,
   index: number,
+  options: ParseIcsCalendarOptions,
 ): RawCalendarEvent | null {
   const summary = eventProperties.get("SUMMARY")?.[0];
   const dtStart = eventProperties.get("DTSTART")?.[0];
@@ -115,9 +124,17 @@ function buildRawEvent(
   }
 
   const startDate = parseIcsDate(dtStart.value);
-  const endDate = parseIcsDate(dtEnd.value);
+  const rawEndDate = parseIcsDate(dtEnd.value);
 
-  if (!startDate || !endDate) {
+  if (!startDate || !rawEndDate) {
+    return null;
+  }
+  const endDate =
+    allDay && options.allDayEndDateMode === "checkout_day"
+      ? normalizeAllDayCheckoutEnd(rawEndDate)
+      : rawEndDate;
+
+  if (endDate <= startDate) {
     return null;
   }
 
@@ -132,7 +149,10 @@ function buildRawEvent(
   });
 }
 
-export function parseIcsCalendar(input: string): RawCalendarEvent[] {
+export function parseIcsCalendar(
+  input: string,
+  options: ParseIcsCalendarOptions = {},
+): RawCalendarEvent[] {
   const lines = unfoldIcsLines(input);
   const events: RawCalendarEvent[] = [];
   let inEvent = false;
@@ -147,7 +167,11 @@ export function parseIcsCalendar(input: string): RawCalendarEvent[] {
 
     if (line === "END:VEVENT") {
       if (inEvent) {
-        const event = buildRawEvent(currentEventProperties, events.length + 1);
+        const event = buildRawEvent(
+          currentEventProperties,
+          events.length + 1,
+          options,
+        );
 
         if (event) {
           events.push(event);

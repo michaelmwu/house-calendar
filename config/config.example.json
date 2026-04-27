@@ -1,81 +1,184 @@
 {
-  "site": {
-    "id": "tokyo",
-    "houseName": "Tokyo House",
-    "ownerName": "Michael",
-    "timezone": "Asia/Tokyo",
-    "branding": {
-      "title": "Michael's Tokyo House",
-      "description": "Private house occupancy, public availability, and trusted stay requests.",
-      "themeColor": "#2d8f6f"
-    }
-  },
+  "defaultSiteId": "tokyo",
   "viewerAccess": {
     "mode": "public"
   },
-  "calendars": [
+  "sites": [
     {
-      "id": "primary",
-      "label": "Primary availability calendar",
-      "provider": "ics",
-      "envVar": "ICS_URL_1"
-    }
-  ],
-  "rooms": [
-    {
-      "id": "my-room",
-      "name": "Michael's room",
-      "aliases": ["my room", "michael room", "michael's room"]
+      "site": {
+        "id": "tokyo",
+        "houseName": "Tokyo House",
+        "ownerName": "Michael",
+        "timezone": "Asia/Tokyo",
+        "branding": {
+          "title": "Michael's Tokyo House",
+          "description": "Private house occupancy, public availability, and trusted stay requests.",
+          "themeColor": "#2d8f6f"
+        }
+      },
+      "calendarInterpretation": {
+        "allDayEndDateMode": "calendar_days"
+      },
+      "calendars": [
+        {
+          "id": "primary",
+          "label": "Tokyo availability calendar",
+          "provider": "ics",
+          "envVar": "ICS_URL_TOKYO"
+        }
+      ],
+      "rooms": [
+        {
+          "id": "my-room",
+          "name": "Michael's room",
+          "aliases": ["my room", "michael room", "michael's room"]
+        },
+        {
+          "id": "guest-room",
+          "name": "Guest room",
+          "aliases": ["guest room", "spare room"]
+        }
+      ],
+      "people": [
+        {
+          "id": "michael",
+          "name": "Michael",
+          "aliases": [],
+          "defaultRoomId": "my-room",
+          "visibility": "visible"
+        },
+        {
+          "id": "tokyo-roommate",
+          "name": "Tokyo roommate",
+          "aliases": ["roommate tokyo"],
+          "defaultRoomId": "guest-room",
+          "visibility": "masked"
+        }
+      ],
+      "visibleHousemateIds": ["michael"],
+      "sharePolicies": [
+        {
+          "name": "view-only",
+          "scope": "view",
+          "canRequest": false
+        },
+        {
+          "name": "trusted-friends",
+          "scope": "request",
+          "canRequest": true
+        }
+      ],
+      "inference": {
+        "defaultPresence": "unknown",
+        "carryForwardDays": 0
+      },
+      "rules": [
+        {
+          "match": "stays \\(whole house\\)",
+          "type": "stay.whole_house",
+          "visibility": "private"
+        },
+        {
+          "match": "stays \\(my room\\)",
+          "type": "stay.room",
+          "roomId": "my-room",
+          "visibility": "private"
+        },
+        {
+          "match": "stays \\(guest room\\)",
+          "type": "stay.room",
+          "roomId": "guest-room",
+          "visibility": "private"
+        }
+      ]
     },
     {
-      "id": "guest-room",
-      "name": "Guest room",
-      "aliases": ["guest room", "spare room"]
-    }
-  ],
-  "people": [
-    {
-      "id": "michael",
-      "name": "Michael",
-      "aliases": [],
-      "defaultRoomId": "my-room",
-      "visibility": "visible"
-    }
-  ],
-  "visibleHousemateIds": ["michael"],
-  "sharePolicies": [
-    {
-      "name": "view-only",
-      "scope": "view",
-      "canRequest": false
-    },
-    {
-      "name": "trusted-friends",
-      "scope": "request",
-      "canRequest": true
-    }
-  ],
-  "inference": {
-    "defaultPresence": "unknown",
-    "carryForwardDays": 0
-  },
-  "rules": [
-    {
-      "match": "stays \\(whole house\\)",
-      "type": "stay.whole_house",
-      "visibility": "private"
-    },
-    {
-      "match": "stays \\(my room\\)",
-      "type": "stay.room",
-      "roomId": "my-room",
-      "visibility": "private"
-    },
-    {
-      "match": "stays \\(guest room\\)",
-      "type": "stay.room",
-      "roomId": "guest-room",
-      "visibility": "private"
+      "site": {
+        "id": "taiwan",
+        "houseName": "Taiwan House",
+        "ownerName": "Michael",
+        "timezone": "Asia/Taipei",
+        "branding": {
+          "title": "Michael's Taiwan House",
+          "description": "Taiwan availability for friends who already know the context.",
+          "themeColor": "#8c5a2b"
+        }
+      },
+      "calendarInterpretation": {
+        "allDayEndDateMode": "checkout_day"
+      },
+      "calendars": [
+        {
+          "id": "primary",
+          "label": "Taiwan availability calendar",
+          "provider": "ics",
+          "envVar": "ICS_URL_TAIWAN"
+        }
+      ],
+      "rooms": [
+        {
+          "id": "main-room",
+          "name": "Main room",
+          "aliases": ["main room", "master room"]
+        },
+        {
+          "id": "guest-suite",
+          "name": "Guest suite",
+          "aliases": ["guest suite", "guest room"]
+        }
+      ],
+      "people": [
+        {
+          "id": "michael",
+          "name": "Michael",
+          "aliases": [],
+          "defaultRoomId": "main-room",
+          "visibility": "visible"
+        },
+        {
+          "id": "taiwan-roommate",
+          "name": "Taiwan roommate",
+          "aliases": ["roommate taiwan"],
+          "defaultRoomId": "guest-suite",
+          "visibility": "visible"
+        }
+      ],
+      "visibleHousemateIds": ["michael", "taiwan-roommate"],
+      "sharePolicies": [
+        {
+          "name": "view-only",
+          "scope": "view",
+          "canRequest": false
+        },
+        {
+          "name": "trusted-friends",
+          "scope": "request",
+          "canRequest": true
+        }
+      ],
+      "inference": {
+        "defaultPresence": "unknown",
+        "carryForwardDays": 0
+      },
+      "rules": [
+        {
+          "match": "stays \\(whole house\\)",
+          "type": "stay.whole_house",
+          "visibility": "private"
+        },
+        {
+          "match": "stays \\(main room\\)",
+          "type": "stay.room",
+          "roomId": "main-room",
+          "visibility": "private"
+        },
+        {
+          "match": "stays \\(guest suite\\)",
+          "type": "stay.room",
+          "roomId": "guest-suite",
+          "visibility": "private"
+        }
+      ]
     }
   ]
 }

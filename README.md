@@ -101,8 +101,10 @@ The app port is worktree-specific, so use `bun run ports` to see the exact URL.
 The current repo includes:
 
 - A demo landing page that shows the first product slice
-- An optional shared-password gate for the public viewer page
-- A DB-backed single-tenant admin auth flow at `/admin`
+- An optional shared-password gate for the public viewer pages
+- Multi-house routing with per-house viewer pages at `/{siteId}`
+- A house switcher for hopping between configured houses
+- A DB-backed global admin auth flow with per-house admin views at `/admin/{siteId}`
 - A checked-in example config at `config/config.example.json`
 - A parser module for event titles like `Someone stays (guest room)` and `Michael [TPE]`
 - Availability derivation that treats end dates as departure dates
@@ -137,28 +139,46 @@ The app is not DB-driven for house config yet, but the shape is moving there.
 Recommended self-hosting flow:
 
 1. Copy the values from `config/config.example.json` into `config/config.json`
-2. Change rooms, people, branding, parsing rules, and `viewerAccess.mode` in the JSON override
-3. For each calendar, either:
-   - keep `envVar: "ICS_URL_1"` and set `ICS_URL_1` in env, or
+2. Set `defaultSiteId` if you want `/` and `/admin` to open a specific house first
+3. Add one entry under `sites` for each house you want in the deployment
+4. Change each house's rooms, people, branding, parsing rules, and calendars in the JSON override
+5. Optionally set `calendarInterpretation.allDayEndDateMode` per house:
+   - `"calendar_days"` if your calendar events represent the actual occupied calendar days
+   - `"checkout_day"` if your calendar events are written like human travel ranges and the last displayed day should be free/checkout
+6. For each calendar, either:
+   - keep `envVar: "ICS_URL_TOKYO"` / `ICS_URL_TAIWAN` style env references and set those in env, or
    - use `url: "https://..."` in `config/config.json` for private local-only dev
-4. If `viewerAccess.mode` is `"password"`, set `VIEWER_PASSWORD` in env
-5. Optionally set `ICS_SYNC_TTL_MINUTES` in env to change the default 15 minute cache TTL
-6. Run `bun dev` and the app will import all-day ICS events directly
+7. If `viewerAccess.mode` is `"password"`, set `VIEWER_PASSWORD` in env
+8. Optionally set `ICS_SYNC_TTL_MINUTES` in env to change the default 15 minute cache TTL
+9. Run `bun dev` and the app will import all-day ICS events directly
 
 `config/config.json` is gitignored and overrides `config/config.example.json` when present.
+
+`calendarInterpretation.allDayEndDateMode` controls how imported all-day ICS
+`DTEND` values are interpreted:
+
+- `"calendar_days"` keeps standard ICS semantics where `DTEND` is exclusive.
+  Example: an event shown in Google Calendar as `May 6–9` blocks May 6, 7, 8,
+  and 9, with May 10 free.
+- `"checkout_day"` shifts imported all-day `DTEND` back by one day so the last
+  displayed day is treated as checkout/free in availability. Example: an event
+  shown in Google Calendar as `May 6–9` blocks May 6, 7, and 8, with May 9
+  free.
 
 Current sync behavior:
 
 - Page loads reuse cached ICS data for 15 minutes by default
-- `POST /admin/sync` forces an immediate refresh and resets the cache
+- `POST /admin/{siteId}/sync` forces an immediate refresh for that house and resets its cache entry
 - The cache is in-memory, so restarting the app clears it
 - `people[].defaultRoomId` marks which room a known housemate occupies when a `presence.in` event is parsed
+- Calendar cache is keyed by `siteId`, so Tokyo and Taiwan refresh independently
 
 Viewer page access:
 
-- `viewerAccess.mode: "public"` leaves the page open
+- `viewerAccess.mode: "public"` leaves all configured house pages open
 - `viewerAccess.mode: "password"` requires `VIEWER_PASSWORD` in env
 - successful unlock stores an httpOnly cookie so viewers do not need to re-enter the password on every request
+- viewer access is deployment-global today, not scoped per house
 
 ## Local Database
 
@@ -186,7 +206,8 @@ The first real auth slice is now implemented.
 - `bun run admin:reset-password` is an explicit operator recovery path
 - `/admin/setup` creates the single admin account with email + password
 - `/admin/login` handles normal password login
-- Admin sessions are stored in Postgres
+- `/admin/{siteId}` shows house-specific diagnostics and sync controls
+- Admin sessions are stored in Postgres and are global for the deployment
 - SMTP is not required for local dev or the default production flow
 
 Minimal local flow:

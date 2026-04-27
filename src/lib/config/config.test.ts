@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { appConfigSchema } from "./config";
+import { appConfigSchema, getDefaultSiteId, getSiteConfig } from "./config";
 
-const baseConfig = {
+const baseSiteConfig = {
   calendars: [
     {
       envVar: "ICS_URL_1",
@@ -49,6 +49,10 @@ const baseConfig = {
   visibleHousemateIds: ["michael"],
 };
 
+const baseConfig = {
+  sites: [baseSiteConfig],
+};
+
 describe("appConfigSchema", () => {
   test("defaults viewer access to public", () => {
     const parsed = appConfigSchema.parse(baseConfig);
@@ -67,17 +71,138 @@ describe("appConfigSchema", () => {
     expect(parsed.viewerAccess.mode).toBe("password");
   });
 
+  test("defaults all-day end date mode to calendar_days", () => {
+    const parsed = appConfigSchema.parse(baseConfig);
+
+    expect(parsed.sites[0]?.calendarInterpretation.allDayEndDateMode).toBe(
+      "calendar_days",
+    );
+  });
+
+  test("accepts checkout_day all-day end date mode", () => {
+    const parsed = appConfigSchema.parse({
+      ...baseConfig,
+      sites: [
+        {
+          ...baseSiteConfig,
+          calendarInterpretation: {
+            allDayEndDateMode: "checkout_day",
+          },
+        },
+      ],
+    });
+
+    expect(parsed.sites[0]?.calendarInterpretation.allDayEndDateMode).toBe(
+      "checkout_day",
+    );
+  });
+
+  test("accepts multiple sites and resolves the default site", () => {
+    const parsed = appConfigSchema.parse({
+      ...baseConfig,
+      defaultSiteId: "taiwan",
+      sites: [
+        baseSiteConfig,
+        {
+          ...baseSiteConfig,
+          site: {
+            ...baseSiteConfig.site,
+            houseName: "Taiwan House",
+            id: "taiwan",
+            timezone: "Asia/Taipei",
+          },
+        },
+      ],
+    });
+
+    expect(getDefaultSiteId(parsed)).toBe("taiwan");
+    expect(getSiteConfig(parsed, "taiwan")?.site.houseName).toBe(
+      "Taiwan House",
+    );
+  });
+
+  test("rejects duplicate site ids", () => {
+    expect(() =>
+      appConfigSchema.parse({
+        ...baseConfig,
+        sites: [
+          baseSiteConfig,
+          {
+            ...baseSiteConfig,
+          },
+        ],
+      }),
+    ).toThrow(/Duplicate site id/);
+  });
+
+  test("rejects site ids that are not route-safe slugs", () => {
+    expect(() =>
+      appConfigSchema.parse({
+        ...baseConfig,
+        sites: [
+          {
+            ...baseSiteConfig,
+            site: {
+              ...baseSiteConfig.site,
+              id: "tokyo/main",
+            },
+          },
+        ],
+      }),
+    ).toThrow(/lowercase URL slug/);
+  });
+
+  test('rejects reserved site ids such as "admin"', () => {
+    expect(() =>
+      appConfigSchema.parse({
+        ...baseConfig,
+        sites: [
+          {
+            ...baseSiteConfig,
+            site: {
+              ...baseSiteConfig.site,
+              id: "admin",
+            },
+          },
+        ],
+      }),
+    ).toThrow(/reserved/);
+  });
+
+  test("rejects unknown defaultSiteId", () => {
+    expect(() =>
+      appConfigSchema.parse({
+        ...baseConfig,
+        defaultSiteId: "missing-site",
+      }),
+    ).toThrow(/Unknown defaultSiteId/);
+  });
+
+  test("rejects blank defaultSiteId", () => {
+    expect(() =>
+      appConfigSchema.parse({
+        ...baseConfig,
+        defaultSiteId: "",
+      }),
+    ).toThrow();
+  });
+
   test("rejects calendar entries with both envVar and url", () => {
     expect(() =>
       appConfigSchema.parse({
         ...baseConfig,
-        calendars: [
+        sites: [
           {
-            envVar: "ICS_URL_1",
-            id: "primary",
-            label: "Primary calendar",
-            provider: "ics",
-            url: "https://example.com/calendar.ics",
+            ...baseSiteConfig,
+            calendars: [
+              {
+                envVar: "ICS_URL_1",
+                id: "primary",
+                label: "Primary calendar",
+                provider: "ics",
+                url: "https://example.com/calendar.ics",
+              },
+            ],
           },
         ],
       }),
@@ -88,13 +213,18 @@ describe("appConfigSchema", () => {
     expect(() =>
       appConfigSchema.parse({
         ...baseConfig,
-        people: [
+        sites: [
           {
-            aliases: [],
-            defaultRoomId: "missing-room",
-            id: "michael",
-            name: "Michael",
-            visibility: "visible",
+            ...baseSiteConfig,
+            people: [
+              {
+                aliases: [],
+                defaultRoomId: "missing-room",
+                id: "michael",
+                name: "Michael",
+                visibility: "visible",
+              },
+            ],
           },
         ],
       }),

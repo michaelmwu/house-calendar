@@ -2,7 +2,7 @@
 
 ## Overview
 
-`house-calendar` is a single-tenant-friendly web app for turning private house calendar inputs into redacted, shareable availability.
+`house-calendar` is a single-owner-friendly web app for turning private house calendar inputs into redacted, shareable availability.
 
 The system is designed around one central idea:
 
@@ -104,12 +104,20 @@ This separation is the main privacy boundary in the system.
 
 The deployment model is expected to be:
 
-- one app instance per house-owner deployment
+- one app instance per owner deployment
+- one or more houses inside that deployment
 - self-hosted via Coolify or similar
 - private env-managed secrets
 - local branding and configuration
 
-This is not the same thing as hardcoding one personal deployment into the repo. The codebase should stay reusable while supporting single-instance hosting.
+This is still not a multi-tenant SaaS control plane. The current model is one
+owner-operated deployment that may contain multiple houses such as Tokyo and
+Taiwan, while keeping parsing, availability, sync, and admin views scoped to a
+selected `siteId`.
+
+This is not the same thing as hardcoding one personal deployment into the repo.
+The codebase should stay reusable while supporting a small shared runtime for
+one owner's houses.
 
 ### 4. App on host, services in containers
 
@@ -124,7 +132,7 @@ This keeps frontend iteration fast while still providing a realistic persistence
 
 ### 5. Password-first admin auth
 
-This repo now ships a deliberately small single-tenant auth model:
+This repo now ships a deliberately small owner-auth model:
 
 - one-time bootstrap codes stored by hash in Postgres
 - required admin email during setup
@@ -140,7 +148,7 @@ Owner auth and viewer access are separate systems:
 
 - owner auth proves administrative identity
 - viewer access should use signed share links later
-- a temporary shared page password is acceptable for low-friction self-hosted viewer gating
+- a temporary shared page password is acceptable for low-friction self-hosted viewer gating across all houses in one deployment
 
 Do not collapse those into one mechanism.
 
@@ -155,9 +163,9 @@ Location:
 
 Responsibilities:
 
-- render public or trusted-viewer availability pages
+- render public or trusted-viewer availability pages for one selected house
 - expose server routes for health, demo data, and later real APIs
-- host admin UI later
+- host house-scoped admin UI inside one shared deployment
 - load branding metadata
 - use shadcn/ui primitives for shared controls, forms, dialogs, popovers, tabs, and notifications
 
@@ -165,6 +173,8 @@ Current files:
 
 - `src/app/layout.tsx`
 - `src/app/page.tsx`
+- `src/app/[siteId]/page.tsx`
+- `src/app/admin/[siteId]/page.tsx`
 - `src/app/api/health/route.ts`
 - `src/app/api/demo/route.ts`
 - `src/components/ui/*`
@@ -211,8 +221,9 @@ Location:
 Responsibilities:
 
 - define structural, safe-to-version-control instance config
-- validate instance-specific branding, rooms, people, calendars, and parsing rules
-- map instance config into the internal `HouseConfig` shape
+- validate deployment-level viewer access plus per-house branding, rooms, people, calendars, and parsing rules
+- validate per-house calendar interpretation rules such as all-day end-date handling
+- map one selected house config into the internal `HouseConfig` shape
 
 This is the beginning of the hybrid config model.
 
@@ -222,14 +233,14 @@ This is the beginning of the hybrid config model.
 
 Examples:
 
-- house name
-- timezone
-- rooms
-- people
-- parsing rules
-- branding
-- share policy defaults
-- viewer access mode
+- `defaultSiteId`
+- deployment-wide viewer access mode
+- per-house names and timezones
+- per-house rooms and people
+- per-house parsing rules
+- per-house calendar interpretation mode
+- per-house branding
+- per-house share policy defaults
 
 #### Secrets, env only
 
@@ -255,6 +266,9 @@ Examples:
 - booking requests
 - audit events
 
+Any future persisted product tables should be keyed by `site_id` so data for
+Tokyo and Taiwan cannot bleed together accidentally.
+
 Drizzle is the schema and query layer for Postgres. Current auth tables still self-initialize with explicit `create table if not exists` statements so fresh self-hosted installs work without a migration command. New persisted product tables should be added to `src/lib/server/db-schema.ts` first, with Drizzle migrations generated from that schema when runtime changes need durable migration history.
 
 ## 4. Server Runtime Helpers
@@ -272,7 +286,7 @@ Current file:
 Current runtime behavior for calendar import:
 
 - ICS data is fetched on-demand and cached in-memory for a short TTL
-- admins can force a refresh through `/admin/sync`
+- admins can force a refresh through `/admin/{siteId}/sync`
 - cache state is process-local and is cleared on restart
 
 Responsibilities:

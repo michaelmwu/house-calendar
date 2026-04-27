@@ -244,4 +244,91 @@ describe("deriveDailyAvailability", () => {
       "free",
     );
   });
+
+  test("presence.out on the departure day overrides overlapping presence.in occupancy", () => {
+    const config = structuredClone(exampleHouseConfig);
+    config.people = [
+      {
+        ...config.people[0],
+        defaultRoomId: "my-room",
+        id: "michael",
+        name: "Michael",
+      },
+    ];
+    config.visibleHousemateIds = ["michael"];
+
+    const days = deriveDailyAvailability(
+      config,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-michael-in",
+          title: "Michael in Taiwan",
+          startDate: "2026-04-24",
+          endDate: "2026-05-01",
+          allDay: true,
+        }),
+        rawCalendarEventSchema.parse({
+          id: "evt-michael-out",
+          title: "Michael out [Japan]",
+          startDate: "2026-04-30",
+          endDate: "2026-05-07",
+          allDay: true,
+        }),
+      ],
+      "2026-04-30",
+      1,
+    );
+
+    expect(days[0]?.status).toBe("available");
+    expect(days[0]?.rooms.find((room) => room.id === "my-room")?.status).toBe(
+      "free",
+    );
+    expect(
+      days[0]?.presence.find((person) => person.personId === "michael"),
+    ).toMatchObject({
+      label: "leaving",
+      state: "out",
+    });
+  });
+
+  test("checkout day after public presence.in is labeled leaving when no departure event exists", () => {
+    const config = structuredClone(exampleHouseConfig);
+    config.people = [
+      {
+        ...config.people[0],
+        defaultRoomId: "my-room",
+        id: "michael",
+        name: "Michael",
+      },
+    ];
+    config.visibleHousemateIds = ["michael"];
+
+    const days = deriveDailyAvailability(
+      config,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-michael-in",
+          title: "Michael [TPE]",
+          startDate: "2026-05-06",
+          endDate: "2026-05-09",
+          allDay: true,
+        }),
+      ],
+      "2026-05-08",
+      2,
+    );
+
+    expect(days[0]?.rooms.find((room) => room.id === "my-room")?.status).toBe(
+      "occupied",
+    );
+    expect(days[1]?.rooms.find((room) => room.id === "my-room")?.status).toBe(
+      "free",
+    );
+    expect(
+      days[1]?.presence.find((person) => person.personId === "michael"),
+    ).toMatchObject({
+      label: "leaving",
+      state: "unknown",
+    });
+  });
 });

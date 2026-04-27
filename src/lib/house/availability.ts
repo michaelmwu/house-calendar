@@ -11,8 +11,14 @@ import {
 
 type WorkingDay = Omit<DailyAvailability, "status"> & {
   hasUnknownStay: boolean;
+  presenceStatesByPerson: Map<string, "in" | "out" | "unknown">;
   rooms: DailyAvailability["rooms"];
   presence: DailyAvailability["presence"];
+};
+
+type InferredDepartureLabel = {
+  checkoutDate: string;
+  personId: string;
 };
 
 function asCalendarDate(value: string): string {
@@ -36,6 +42,18 @@ function enumerateDays(startDate: string, endDateExclusive: string): string[] {
   }
 
   return days;
+}
+
+function getPublicPresenceLabel(
+  presenceState: "in" | "out" | "unknown",
+  eventStartDate: string,
+  eventDay: string,
+): string | undefined {
+  if (presenceState === "out" && eventDay === asCalendarDate(eventStartDate)) {
+    return "leaving";
+  }
+
+  return undefined;
 }
 
 export function deriveDailyAvailability(
@@ -89,9 +107,11 @@ export function deriveDailyAvailability(
           name: person.name,
           state: "unknown" as const,
         })),
+      presenceStatesByPerson: new Map(),
     }),
   );
   const daysByDate = new Map(days.map((day) => [day.date, day] as const));
+  const inferredDepartureLabels: InferredDepartureLabel[] = [];
 
   for (const event of events) {
     if (!event.allDay) {
@@ -100,6 +120,18 @@ export function deriveDailyAvailability(
 
     const parsed = parseEventTitle(event.title, config);
     const eventDays = enumerateDays(event.startDate, event.endDate);
+
+    if (
+      parsed.type === "presence" &&
+      parsed.personId &&
+      parsed.presenceState === "in" &&
+      parsed.visibility === "public"
+    ) {
+      inferredDepartureLabels.push({
+        checkoutDate: asCalendarDate(event.endDate),
+        personId: parsed.personId,
+      });
+    }
 
     for (const eventDay of eventDays) {
       const day = daysByDate.get(eventDay);
@@ -130,19 +162,9 @@ export function deriveDailyAvailability(
       if (
         parsed.type === "presence" &&
         parsed.personId &&
-        parsed.presenceState === "in"
+        parsed.presenceState
       ) {
-        const person = config.people.find(
-          (candidate) => candidate.id === parsed.personId,
-        );
-
-        if (person?.defaultRoomId) {
-          day.rooms = day.rooms.map((room) =>
-            room.id === person.defaultRoomId
-              ? { ...room, status: "occupied" }
-              : room,
-          );
-        }
+        day.presenceStatesByPerson.set(parsed.personId, parsed.presenceState);
       }
 
       if (
@@ -151,17 +173,59 @@ export function deriveDailyAvailability(
         parsed.presenceState &&
         parsed.visibility === "public"
       ) {
+        const label = getPublicPresenceLabel(
+          parsed.presenceState,
+          event.startDate,
+          eventDay,
+        );
+
         day.presence = day.presence.map((presence) =>
           presence.personId === parsed.personId
-            ? { ...presence, state: parsed.presenceState ?? "unknown" }
+            ? {
+                ...presence,
+                label,
+                state: parsed.presenceState ?? "unknown",
+              }
             : presence,
         );
       }
     }
   }
 
+  for (const inferredDepartureLabel of inferredDepartureLabels) {
+    const day = daysByDate.get(inferredDepartureLabel.checkoutDate);
+
+    if (!day) {
+      continue;
+    }
+
+    day.presence = day.presence.map((presence) =>
+      presence.personId === inferredDepartureLabel.personId &&
+      presence.state === "unknown" &&
+      !presence.label
+        ? {
+            ...presence,
+            label: "leaving",
+          }
+        : presence,
+    );
+  }
+
   return days.map((day) => {
-    const occupiedRooms = day.rooms.filter(
+    const occupiedPresenceRoomIds = new Set(
+      config.people.flatMap((person) =>
+        day.presenceStatesByPerson.get(person.id) === "in" &&
+        person.defaultRoomId
+          ? [person.defaultRoomId]
+          : [],
+      ),
+    );
+    const rooms = day.rooms.map((room) =>
+      occupiedPresenceRoomIds.has(room.id)
+        ? { ...room, status: "occupied" as const }
+        : room,
+    );
+    const occupiedRooms = rooms.filter(
       (room) => room.status === "occupied",
     ).length;
     const status = day.hasUnknownStay
@@ -174,6 +238,7 @@ export function deriveDailyAvailability(
 
     return dailyAvailabilitySchema.parse({
       ...day,
+      rooms,
       status,
     });
   });

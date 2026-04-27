@@ -6,6 +6,8 @@ import {
   type AppCalendar,
   appConfigSchema,
   configToHouseConfig,
+  getDefaultSiteId,
+  getSiteConfig,
 } from "@/lib/config/config";
 import exampleConfig from "../../../config/config.example.json";
 
@@ -21,8 +23,20 @@ export async function loadAppConfig() {
   );
 }
 
-export async function loadHouseConfig() {
-  return configToHouseConfig(await loadAppConfig());
+export async function loadSiteConfig(siteId?: string) {
+  const config = await loadAppConfig();
+  const resolvedSiteId = siteId ?? getDefaultSiteId(config);
+  return getSiteConfig(config, resolvedSiteId);
+}
+
+export async function loadHouseConfig(siteId?: string) {
+  const siteConfig = await loadSiteConfig(siteId);
+
+  if (!siteConfig) {
+    return null;
+  }
+
+  return configToHouseConfig(siteConfig);
 }
 
 export function resolveCalendarUrl(calendar: AppCalendar): string | null {

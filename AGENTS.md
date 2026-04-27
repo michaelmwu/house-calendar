@@ -52,7 +52,7 @@ Do not replace the wrapped `typecheck` flow with raw `tsc --noEmit`. This repo u
 Current calendar sync behavior:
 
 - ICS imports are cached in-process with a short TTL
-- `/admin/sync` forces a refresh and resets that cache
+- `/admin/{siteId}/sync` forces a refresh and resets that house cache entry
 - cache state is not persisted yet, so restart clears it
 
 ## Config Rules
@@ -87,7 +87,14 @@ If you add new secret-bearing fields, keep them in env or clearly marked sensiti
 Known housemates may also define `defaultRoomId` in checked-in config. That is
 the room occupied by default when a `presence.in` event is parsed for them.
 
+Each house may also define `calendarInterpretation.allDayEndDateMode` to
+control whether imported all-day ICS end dates follow standard exclusive
+semantics or are treated as checkout days for availability.
+
 Viewer page passwords belong in env, not checked-in config.
+
+The repo now supports one deployment with multiple houses. Keep viewer access
+global unless the change explicitly adds house-scoped viewer permissions.
 
 ## Domain Rules
 
@@ -100,6 +107,7 @@ These are not optional stylistic preferences. They are product invariants.
 - Requests are proposals, not holds.
 - Parsing should be deterministic first. Do not lead with LLM parsing for core availability logic.
 - Admin auth is single-tenant and password-first right now. Do not reintroduce SMTP as a required dependency without updating docs and architecture.
+- Global admin auth is acceptable for one owner's multi-house deployment. If you add per-house admin permissions later, document the authorization model clearly.
 
 If you change any of these assumptions, update `ARCHITECTURE.md` and explain why.
 
@@ -157,6 +165,7 @@ Prefer small, defensible changes.
 Call out:
 
 - privacy leaks
+- cross-house data leakage
 - auth mistakes
 - incorrect date semantics
 - config/secret confusion

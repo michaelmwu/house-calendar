@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getDefaultSiteId } from "@/lib/config/config";
+import { loadAppConfig } from "@/lib/server/app-config";
 import { getAdminAuthState } from "@/lib/server/auth";
 
 type SearchParams = Promise<{
@@ -28,13 +30,18 @@ export default async function AdminSetupPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const [{ error }, authState] = await Promise.all([
+  const [{ error }, authState, appConfig] = await Promise.all([
     searchParams,
     getAdminAuthState(),
+    loadAppConfig(),
   ]);
 
   if (authState.initialized) {
-    redirect(authState.session ? "/admin" : "/admin/login");
+    redirect(
+      authState.session
+        ? `/admin/${getDefaultSiteId(appConfig)}`
+        : "/admin/login",
+    );
   }
 
   return (
