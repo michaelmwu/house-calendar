@@ -368,7 +368,10 @@ function getPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
     0,
     Math.min(288, window.innerWidth - viewportPadding * 2),
   );
-  const previewHeight = Math.max(0, window.innerHeight - viewportPadding * 2);
+  const previewHeight = Math.max(
+    0,
+    Math.min(448, window.innerHeight - viewportPadding * 2),
+  );
 
   return {
     x: Math.min(x + 18, window.innerWidth - previewWidth - viewportPadding),
@@ -661,7 +664,7 @@ export function Calendar({
 
       {previewDay && previewPosition ? (
         <div
-          className="pointer-events-auto fixed z-50 w-[min(18rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] overflow-y-auto rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-white/95 p-4 shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur sm:pointer-events-none"
+          className="pointer-events-auto fixed z-50 w-[min(18rem,calc(100vw-2rem))] max-h-[min(28rem,calc(100vh-2rem))] overflow-y-auto rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-white/95 p-4 shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur sm:pointer-events-none"
           style={{
             left: previewPosition.x,
             top: previewPosition.y,
