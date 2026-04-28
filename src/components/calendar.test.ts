@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { addDays, format, parseISO } from "date-fns";
 import type { DailyAvailability } from "@/lib/house/types";
-import { buildDayAriaLabel, buildWeeks, resolveDayEventText } from "./calendar";
+import {
+  buildDayAriaLabel,
+  buildWeeks,
+  getWholeHouseDetailLabel,
+  resolveDayEventText,
+} from "./calendar";
 
 function buildDay(date: string): DailyAvailability {
   return {
@@ -199,5 +204,22 @@ describe("buildDayAriaLabel", () => {
     });
 
     expect(label).toBe("May 1, 2026. Available. All rooms free. 1 day event");
+  });
+});
+
+describe("getWholeHouseDetailLabel", () => {
+  test("preserves unknown status instead of inferring a free summary", () => {
+    const label = getWholeHouseDetailLabel({
+      date: "2026-05-01",
+      events: [],
+      presence: [],
+      rooms: [
+        { id: "my-room", name: "My room", status: "free" },
+        { id: "guest-room", name: "Guest room", status: "free" },
+      ],
+      status: "unknown",
+    });
+
+    expect(label).toBe("Needs interpretation");
   });
 });

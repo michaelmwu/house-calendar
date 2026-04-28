@@ -219,8 +219,12 @@ function formatRoomSummary(day: DailyAvailability): string {
   return formatRoomCount(occupiedCount, "occupied");
 }
 
-function getWholeHouseDetailLabel(day: DailyAvailability): string {
+export function getWholeHouseDetailLabel(day: DailyAvailability): string {
   if (day.rooms.length === 1) {
+    return getDayStatusLabel(day);
+  }
+
+  if (day.status === "unknown") {
     return getDayStatusLabel(day);
   }
 
@@ -360,8 +364,11 @@ function getPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
   }
 
   const viewportPadding = 16;
-  const previewWidth = Math.min(288, window.innerWidth - viewportPadding * 2);
-  const previewHeight = Math.min(448, window.innerHeight - viewportPadding * 2);
+  const previewWidth = Math.max(
+    0,
+    Math.min(288, window.innerWidth - viewportPadding * 2),
+  );
+  const previewHeight = Math.max(0, window.innerHeight - viewportPadding * 2);
 
   return {
     x: Math.min(x + 18, window.innerWidth - previewWidth - viewportPadding),
@@ -654,7 +661,7 @@ export function Calendar({
 
       {previewDay && previewPosition ? (
         <div
-          className="pointer-events-none fixed z-50 w-[min(18rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] overflow-y-auto rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-white/95 p-4 shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur"
+          className="pointer-events-auto fixed z-50 w-[min(18rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] overflow-y-auto rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-white/95 p-4 shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur sm:pointer-events-none"
           style={{
             left: previewPosition.x,
             top: previewPosition.y,
