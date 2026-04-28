@@ -38,6 +38,13 @@ const statusDotClasses = {
 } as const;
 
 type StatusKey = keyof typeof statusDotClasses;
+type RoomStatusKey = DailyAvailability["rooms"][number]["status"];
+
+const roomStatusDotClasses: Record<RoomStatusKey, string> = {
+  free: "bg-emerald-500",
+  tentative: "bg-sky-500",
+  occupied: "bg-[color:var(--app-foreground)]",
+};
 
 type CalendarCell = {
   id: string;
@@ -212,6 +219,29 @@ function formatRoomSummary(day: DailyAvailability): string {
   return formatRoomCount(occupiedCount, "occupied");
 }
 
+export function getWholeHouseDetailLabel(day: DailyAvailability): string {
+  if (day.rooms.length === 1) {
+    return getDayStatusLabel(day);
+  }
+
+  if (day.status === "unknown") {
+    return getDayStatusLabel(day);
+  }
+
+  return formatRoomSummary(day);
+}
+
+function getRoomStatusLabel(status: RoomStatusKey): string {
+  switch (status) {
+    case "free":
+      return "Free";
+    case "tentative":
+      return "Tentative";
+    case "occupied":
+      return "Occupied";
+  }
+}
+
 export function buildDayAriaLabel(day: DailyAvailability): string {
   const labels = [
     format(parseISO(day.date), "MMMM d, yyyy"),
@@ -333,9 +363,15 @@ function getPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
     return { x: x + 18, y: y + 18 };
   }
 
-  const previewWidth = 260;
-  const previewHeight = 320;
   const viewportPadding = 16;
+  const previewWidth = Math.max(
+    0,
+    Math.min(288, window.innerWidth - viewportPadding * 2),
+  );
+  const previewHeight = Math.max(
+    0,
+    Math.min(448, window.innerHeight - viewportPadding * 2),
+  );
 
   return {
     x: Math.min(x + 18, window.innerWidth - previewWidth - viewportPadding),
@@ -451,6 +487,8 @@ export function Calendar({
     ? (days.find((day) => day.date === previewDate) ?? null)
     : null;
   const hasSingleRoom = days[0]?.rooms.length === 1;
+  const hidePreviewRoomBreakdownOnMobile =
+    previewDay?.status === "unavailable" && !hasSingleRoom;
   const legendItems: ReadonlyArray<readonly [StatusKey, string]> = hasSingleRoom
     ? [
         ["available", "Room free"],
@@ -626,7 +664,7 @@ export function Calendar({
 
       {previewDay && previewPosition ? (
         <div
-          className="pointer-events-none fixed z-50 w-[16rem] rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-white/95 p-4 shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur"
+          className="pointer-events-auto fixed z-50 w-[min(18rem,calc(100vw-2rem))] max-h-[min(28rem,calc(100vh-2rem))] overflow-y-auto rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-white/95 p-4 shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur sm:pointer-events-none"
           style={{
             left: previewPosition.x,
             top: previewPosition.y,
@@ -657,6 +695,57 @@ export function Calendar({
           <p className="mt-3 text-sm text-[var(--app-muted)]">
             {formatRoomSummary(previewDay)}
           </p>
+
+          <div className="mt-4 space-y-2 border-t border-[color:var(--app-card-border)] pt-3">
+            <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--app-muted)]">
+              Availability details
+            </p>
+
+            {hasSingleRoom ? null : (
+              <div className="rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        statusDotClasses[previewDay.status]
+                      }`}
+                    />
+                    <span>Whole house</span>
+                  </div>
+                  <span className="text-right font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
+                    {getWholeHouseDetailLabel(previewDay)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div
+              className={`space-y-2 ${
+                hidePreviewRoomBreakdownOnMobile ? "hidden sm:block" : ""
+              }`}
+            >
+              {previewDay.rooms.map((room) => (
+                <div
+                  key={room.id}
+                  className="rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          roomStatusDotClasses[room.status]
+                        }`}
+                      />
+                      <span>{room.name}</span>
+                    </div>
+                    <span className="text-right font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
+                      {getRoomStatusLabel(room.status)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {previewDay.events.length > 0 ? (
             <div className="mt-4 border-t border-[color:var(--app-card-border)] pt-3">
@@ -733,8 +822,8 @@ export function Calendar({
             <div className="mt-5 rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <span>Whole house</span>
-                <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
-                  {selectedDay.status}
+                <span className="text-right font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
+                  {getWholeHouseDetailLabel(selectedDay)}
                 </span>
               </div>
               <p className="mt-1 text-xs text-[var(--app-muted)]">
@@ -754,7 +843,7 @@ export function Calendar({
               >
                 <div className="flex items-center justify-between gap-3">
                   <span>{room.name}</span>
-                  <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
+                  <span className="text-right font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
                     {room.status}
                   </span>
                 </div>
