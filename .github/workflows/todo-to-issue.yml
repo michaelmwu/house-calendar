@@ -1,0 +1,64 @@
+name: Convert TODOs to Issue
+
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - closed
+
+concurrency:
+  group: todo-to-issue-main
+  cancel-in-progress: false
+
+jobs:
+  todo-to-issue:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Check out main
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: TODO to Issue
+        uses: alstr/todo-to-issue-action@64aca8fda7023259aada83ba44ad988c4c443657
+        with:
+          IDENTIFIERS: '[{"name": "BUG", "labels": []}, {"name": "FIXME", "labels": []}, {"name": "TODO", "labels": []}]'
+          INSERT_ISSUE_URLS: "true"
+
+      - name: Set Git user
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit and Push Changes
+        run: |
+          # This workflow updates main in place; branch protection must allow
+          # the workflow token or github-actions[bot] to push to main.
+          git add -A
+
+          if [[ -z "$(git status --porcelain)" ]]; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Automatically added GitHub issue links to TODOs"
+
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Push attempt ${attempt} failed; retrying." >&2
+            git rebase --abort || true
+            sleep $((attempt * 5))
+          done
+
+          echo "Failed to rebase and push TODO URL updates to main." >&2
+          exit 1
