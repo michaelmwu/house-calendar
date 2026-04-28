@@ -25,6 +25,11 @@ jobs:
         with:
           fetch-depth: 0
           ref: main
+          # github.token is enough for most runs. Use GH_AUTOMATION_TOKEN when
+          # the action may commit workflow file edits back to main, especially
+          # under .github/workflows/**. That secret should have workflow scope
+          # plus repository contents write access so workflow-updating pushes succeed.
+          token: ${{ secrets.GH_AUTOMATION_TOKEN || github.token }}
 
       - name: TODO to Issue
         uses: alstr/todo-to-issue-action@64aca8fda7023259aada83ba44ad988c4c443657
