@@ -167,7 +167,7 @@ export default async function SiteHomePage({
     source === "sample" ? "Sample data" : "Calendar data notice";
   const warningMessage =
     source === "sample"
-      ? "This preview is using sample availability while a real calendar is not connected."
+      ? "This preview is using sample availability as a real calendar is not connected."
       : "Some calendar data could not be loaded. Availability may be incomplete.";
   const timedNotes = siteConfig.calendarDisplay.timedNotes;
   const calendarDays = timedNotes.enabled
