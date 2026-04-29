@@ -650,7 +650,6 @@ export function Calendar({
                                 updatePreviewFromMouse(day.date, event)
                               }
                               onMouseLeave={clearHoverPreview}
-                              onBlur={clearHoverPreview}
                               className={`aspect-[0.78] rounded-xl p-1.5 text-left transition sm:aspect-[0.95] sm:min-h-[5.75rem] sm:rounded-2xl sm:p-2 ${
                                 cellClasses
                               } ${stateClasses} ${
@@ -952,7 +951,6 @@ export function Calendar({
                 }
                 onMouseMove={(event) => updatePreviewFromMouse(day.date, event)}
                 onMouseLeave={clearHoverPreview}
-                onBlur={clearHoverPreview}
                 className="flex w-full items-center justify-between rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-left text-sm"
               >
                 <span>{format(parseISO(day.date), "MMM d")}</span>
