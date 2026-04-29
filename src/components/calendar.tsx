@@ -336,7 +336,9 @@ function formatPanelDate(date: string): string {
 function canUseHoverPreview(): boolean {
   return (
     typeof window !== "undefined" &&
-    window.matchMedia("(hover: hover) and (pointer: fine)").matches
+    window.matchMedia(
+      "(min-width: 1024px) and (hover: hover) and (pointer: fine)",
+    ).matches
   );
 }
 
