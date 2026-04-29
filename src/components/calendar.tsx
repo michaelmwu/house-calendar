@@ -799,7 +799,7 @@ export function Calendar({
               <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.28em] text-[var(--app-muted)]">
                 Preview date
               </p>
-              <h3 className="mt-2 text-lg font-semibold tracking-[-0.04em]">
+              <h3 className="mt-1.5 text-base font-semibold tracking-[-0.04em] lg:mt-2 lg:text-lg">
                 {formatPanelDate(previewDay.date)}
               </h3>
               <p className="text-xs text-[var(--app-muted)]">
@@ -816,13 +816,13 @@ export function Calendar({
             </div>
           </div>
 
-          <p className="mt-3 text-sm text-[var(--app-muted)]">
+          <p className="mt-2 text-sm text-[var(--app-muted)] lg:mt-3">
             {formatRoomSummary(previewDay)}
           </p>
 
-          <div className="mt-4 space-y-2 border-t border-[color:var(--app-card-border)] pt-3">
+          <div className="mt-3 space-y-0 border-t border-[color:var(--app-card-border)] pt-2 lg:mt-4 lg:space-y-2 lg:pt-3">
             {hasSingleRoom ? null : (
-              <div className="rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm shadow-[0_1px_0_rgba(31,28,22,0.04)]">
+              <div className="hidden rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm shadow-[0_1px_0_rgba(31,28,22,0.04)] lg:block">
                 <div className="flex items-center justify-between gap-3">
                   <span>Whole house</span>
                   <span className="text-right font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
@@ -835,7 +835,7 @@ export function Calendar({
             {previewDay.rooms.map((room) => (
               <div
                 key={room.id}
-                className="rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm shadow-[0_1px_0_rgba(31,28,22,0.04)]"
+                className="border-t border-[color:var(--app-card-border)]/70 py-2 text-sm first:border-t-0 lg:rounded-xl lg:border lg:border-[color:var(--app-card-border)] lg:bg-white/75 lg:px-3 lg:shadow-[0_1px_0_rgba(31,28,22,0.04)]"
               >
                 <div className="flex items-center justify-between gap-3">
                   <span>{room.name}</span>
@@ -848,7 +848,7 @@ export function Calendar({
           </div>
 
           {previewDay.events.length > 0 ? (
-            <div className="mt-4 border-t border-[color:var(--app-card-border)] pt-3">
+            <div className="mt-3 border-t border-[color:var(--app-card-border)] pt-2 lg:mt-4 lg:pt-3">
               <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--app-muted)]">
                 {getDayEventSectionLabel(previewDay)}
               </p>
