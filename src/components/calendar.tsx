@@ -414,48 +414,6 @@ function getClickPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
   };
 }
 
-function getAnchorPreviewPosition(anchor: HTMLElement): PreviewPosition {
-  if (typeof window === "undefined") {
-    return { x: 16, y: 16 };
-  }
-
-  const viewportPadding = 16;
-  const isDesktopLayout = window.matchMedia("(min-width: 1024px)").matches;
-  const previewWidth = Math.max(
-    0,
-    Math.min(288, window.innerWidth - viewportPadding * 2),
-  );
-  const previewHeight = Math.max(
-    0,
-    Math.min(
-      isDesktopLayout ? 448 : 256,
-      window.innerHeight - viewportPadding * 2,
-    ),
-  );
-  const rect = anchor.getBoundingClientRect();
-  const centeredX = rect.left + rect.width / 2 - previewWidth / 2;
-  const belowY = rect.bottom + 10;
-  const aboveY = rect.top - previewHeight - 10;
-  const hasRoomBelow =
-    belowY + previewHeight <= window.innerHeight - viewportPadding;
-
-  return {
-    x: Math.max(
-      viewportPadding,
-      Math.min(centeredX, window.innerWidth - previewWidth - viewportPadding),
-    ),
-    y: Math.max(
-      viewportPadding,
-      hasRoomBelow
-        ? belowY
-        : Math.min(
-            aboveY,
-            window.innerHeight - previewHeight - viewportPadding,
-          ),
-    ),
-  };
-}
-
 function parseSelectedDateHash(hash: string): string | null {
   const value = hash.startsWith("#") ? hash.slice(1) : hash;
 
@@ -490,10 +448,6 @@ export function Calendar({
     if (canUseHoverPreview()) {
       clearPreview();
     }
-  };
-  const updatePreviewFromAnchor = (dayDate: string, anchor: HTMLElement) => {
-    setPreviewDate(dayDate);
-    setPreviewPosition(getAnchorPreviewPosition(anchor));
   };
   const updatePreviewFromClick = (
     dayDate: string,
@@ -689,14 +643,6 @@ export function Calendar({
                               aria-label={buildDayAriaLabel(day)}
                               type="button"
                               onClick={(event) => selectDay(day.date, event)}
-                              onFocus={(event) => {
-                                if (canUseHoverPreview()) {
-                                  updatePreviewFromAnchor(
-                                    day.date,
-                                    event.currentTarget,
-                                  );
-                                }
-                              }}
                               onMouseEnter={(event) =>
                                 updatePreviewFromMouse(day.date, event)
                               }
@@ -1001,11 +947,6 @@ export function Calendar({
                 key={day.date}
                 type="button"
                 onClick={(event) => selectDay(day.date, event)}
-                onFocus={(event) => {
-                  if (canUseHoverPreview()) {
-                    updatePreviewFromAnchor(day.date, event.currentTarget);
-                  }
-                }}
                 onMouseEnter={(event) =>
                   updatePreviewFromMouse(day.date, event)
                 }
