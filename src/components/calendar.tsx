@@ -783,7 +783,7 @@ export function Calendar({
           {previewPosition.placement ? (
             <span
               aria-hidden="true"
-              className={`absolute h-3 w-3 rotate-45 border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] ${
+              className={`absolute hidden h-3 w-3 rotate-45 border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] lg:block ${
                 previewPosition.placement === "below"
                   ? "top-1 border-r-0 border-b-0"
                   : "bottom-1 border-t-0 border-l-0"
@@ -832,10 +832,14 @@ export function Calendar({
               </div>
             )}
 
-            {previewDay.rooms.map((room) => (
+            {previewDay.rooms.map((room, roomIndex) => (
               <div
                 key={room.id}
-                className="border-t border-[color:var(--app-card-border)]/70 py-2 text-sm first:border-t-0 lg:rounded-xl lg:border lg:border-[color:var(--app-card-border)] lg:bg-white/75 lg:px-3 lg:shadow-[0_1px_0_rgba(31,28,22,0.04)]"
+                className={`py-2 text-sm lg:rounded-xl lg:border lg:border-[color:var(--app-card-border)] lg:bg-white/75 lg:px-3 lg:shadow-[0_1px_0_rgba(31,28,22,0.04)] ${
+                  roomIndex === 0
+                    ? ""
+                    : "border-t border-[color:var(--app-card-border)]/70"
+                }`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <span>{room.name}</span>
