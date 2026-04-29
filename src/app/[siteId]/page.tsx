@@ -167,7 +167,7 @@ export default async function SiteHomePage({
     source === "sample" ? "Sample data" : "Calendar data notice";
   const warningMessage =
     source === "sample"
-      ? "This preview is using sample availability as a real calendar is not connected."
+      ? "This preview is using sample availability until real stay dates are available."
       : "Some calendar data could not be loaded. Availability may be incomplete.";
   const timedNotes = siteConfig.calendarDisplay.timedNotes;
   const calendarDays = timedNotes.enabled
@@ -186,7 +186,12 @@ export default async function SiteHomePage({
         <SiteTabs currentSiteId={siteConfig.site.id} sites={siteTabs} />
 
         {warnings.length > 0 ? (
-          <section className="flex flex-wrap items-center gap-2 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <section
+            aria-atomic="true"
+            aria-live="polite"
+            role="status"
+            className="flex flex-wrap items-center gap-2 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+          >
             <p className="rounded-full bg-amber-100 px-3 py-1 font-semibold">
               {warningTitle}
             </p>

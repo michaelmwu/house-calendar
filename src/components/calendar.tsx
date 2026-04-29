@@ -1,7 +1,7 @@
 "use client";
 
 import { addDays, format, getDay, isAfter, parseISO } from "date-fns";
-import type { MouseEvent } from "react";
+import type { FocusEvent, MouseEvent } from "react";
 import { useEffect, useState } from "react";
 import { currentDateInTimeZone, formatTimeInTimeZone } from "@/lib/house/date";
 import type { DailyAvailability } from "@/lib/house/types";
@@ -36,6 +36,9 @@ const statusDotClasses = {
   unavailable: "bg-rose-500",
   unknown: "bg-stone-400",
 } as const;
+
+const hoverPreviewMediaQuery =
+  "(min-width: 1024px) and (hover: hover) and (pointer: fine)";
 
 type StatusKey = keyof typeof statusDotClasses;
 
@@ -164,6 +167,19 @@ function getDayStatusLabel(day: DailyAvailability): string {
       return hasSingleRoom ? "Occupied" : "Whole house occupied";
     case "unknown":
       return "Needs interpretation";
+  }
+}
+
+function getRoomStatusLabel(
+  status: DailyAvailability["rooms"][number]["status"],
+): string {
+  switch (status) {
+    case "free":
+      return "Free";
+    case "tentative":
+      return "Tentative";
+    case "occupied":
+      return "Occupied";
   }
 }
 
@@ -335,15 +351,6 @@ function formatPanelDate(date: string): string {
   return format(parseISO(date), "MMM d");
 }
 
-function canUseHoverPreview(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia(
-      "(min-width: 1024px) and (hover: hover) and (pointer: fine)",
-    ).matches
-  );
-}
-
 function getPointerPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
   if (typeof window === "undefined") {
     return { x: x + 18, y: y + 18 };
@@ -367,6 +374,44 @@ function getPointerPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
     y: Math.max(
       viewportPadding,
       Math.min(y + 18, window.innerHeight - previewHeight - viewportPadding),
+    ),
+  };
+}
+
+function getAnchorPreviewPosition(anchor: HTMLElement): PreviewPosition {
+  if (typeof window === "undefined") {
+    return { x: 16, y: 16 };
+  }
+
+  const viewportPadding = 16;
+  const previewWidth = Math.max(
+    0,
+    Math.min(288, window.innerWidth - viewportPadding * 2),
+  );
+  const previewHeight = Math.max(
+    0,
+    Math.min(448, window.innerHeight - viewportPadding * 2),
+  );
+  const rect = anchor.getBoundingClientRect();
+  const centeredX = rect.left + rect.width / 2 - previewWidth / 2;
+  const belowY = rect.bottom + 10;
+  const aboveY = rect.top - previewHeight - 10;
+  const hasRoomBelow =
+    belowY + previewHeight <= window.innerHeight - viewportPadding;
+
+  return {
+    x: Math.max(
+      viewportPadding,
+      Math.min(centeredX, window.innerWidth - previewWidth - viewportPadding),
+    ),
+    y: Math.max(
+      viewportPadding,
+      hasRoomBelow
+        ? belowY
+        : Math.min(
+            aboveY,
+            window.innerHeight - previewHeight - viewportPadding,
+          ),
     ),
   };
 }
@@ -439,15 +484,27 @@ export function Calendar({
   const [previewDate, setPreviewDate] = useState<string | null>(null);
   const [previewPosition, setPreviewPosition] =
     useState<PreviewPosition | null>(null);
+  const [canHoverPreview, setCanHoverPreview] = useState(false);
 
   const clearPreview = () => {
     setPreviewDate(null);
     setPreviewPosition(null);
   };
   const clearHoverPreview = () => {
-    if (canUseHoverPreview()) {
+    if (canHoverPreview) {
       clearPreview();
     }
+  };
+  const updatePreviewFromFocus = (
+    dayDate: string,
+    event: FocusEvent<HTMLButtonElement>,
+  ) => {
+    if (!canHoverPreview || !event.currentTarget.matches(":focus-visible")) {
+      return;
+    }
+
+    setPreviewDate(dayDate);
+    setPreviewPosition(getAnchorPreviewPosition(event.currentTarget));
   };
   const updatePreviewFromClick = (
     dayDate: string,
@@ -465,7 +522,7 @@ export function Calendar({
     dayDate: string,
     event: MouseEvent<HTMLButtonElement>,
   ) => {
-    if (!canUseHoverPreview()) {
+    if (!canHoverPreview) {
       return;
     }
 
@@ -480,10 +537,22 @@ export function Calendar({
   const selectDay = (dayDate: string, event: MouseEvent<HTMLButtonElement>) => {
     setSelectedDate(dayDate);
 
-    if (!canUseHoverPreview()) {
+    if (!canHoverPreview) {
       updatePreviewFromClick(dayDate, event);
     }
   };
+
+  useEffect(() => {
+    const query = window.matchMedia(hoverPreviewMediaQuery);
+    const updateHoverPreviewCapability = () =>
+      setCanHoverPreview(query.matches);
+
+    updateHoverPreviewCapability();
+    query.addEventListener("change", updateHoverPreviewCapability);
+
+    return () =>
+      query.removeEventListener("change", updateHoverPreviewCapability);
+  }, []);
 
   useEffect(() => {
     setSelectedDate((currentSelectedDate) =>
@@ -640,9 +709,14 @@ export function Calendar({
                           return (
                             <button
                               key={cell.id}
+                              aria-current={isToday ? "date" : undefined}
                               aria-label={buildDayAriaLabel(day)}
+                              aria-pressed={isSelected}
                               type="button"
                               onClick={(event) => selectDay(day.date, event)}
+                              onFocus={(event) =>
+                                updatePreviewFromFocus(day.date, event)
+                              }
                               onMouseEnter={(event) =>
                                 updatePreviewFromMouse(day.date, event)
                               }
@@ -650,6 +724,7 @@ export function Calendar({
                                 updatePreviewFromMouse(day.date, event)
                               }
                               onMouseLeave={clearHoverPreview}
+                              onBlur={clearHoverPreview}
                               className={`aspect-[0.78] rounded-xl p-1.5 text-left transition sm:aspect-[0.95] sm:min-h-[5.75rem] sm:rounded-2xl sm:p-2 ${
                                 cellClasses
                               } ${stateClasses} ${
@@ -754,7 +829,7 @@ export function Calendar({
                   statusDotClasses[previewDay.status]
                 }`}
               />
-              {previewDay.status}
+              {getDayStatusLabel(previewDay)}
             </div>
           </div>
 
@@ -786,7 +861,7 @@ export function Calendar({
                 <div className="flex items-center justify-between gap-3">
                   <span>{room.name}</span>
                   <span className="text-right font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
-                    {room.status}
+                    {getRoomStatusLabel(room.status)}
                   </span>
                 </div>
               </div>
@@ -835,7 +910,7 @@ export function Calendar({
                 statusDotClasses[selectedDay.status]
               }`}
             />
-            {selectedDay.status}
+            {getDayStatusLabel(selectedDay)}
           </div>
 
           <p className="mt-4 text-sm text-[var(--app-muted)]">
@@ -890,7 +965,7 @@ export function Calendar({
                 <div className="flex items-center justify-between gap-3">
                   <span>{room.name}</span>
                   <span className="text-right font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
-                    {room.status}
+                    {getRoomStatusLabel(room.status)}
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-[var(--app-muted)]">
@@ -946,16 +1021,18 @@ export function Calendar({
                 key={day.date}
                 type="button"
                 onClick={(event) => selectDay(day.date, event)}
+                onFocus={(event) => updatePreviewFromFocus(day.date, event)}
                 onMouseEnter={(event) =>
                   updatePreviewFromMouse(day.date, event)
                 }
                 onMouseMove={(event) => updatePreviewFromMouse(day.date, event)}
                 onMouseLeave={clearHoverPreview}
+                onBlur={clearHoverPreview}
                 className="flex w-full items-center justify-between rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-left text-sm"
               >
                 <span>{format(parseISO(day.date), "MMM d")}</span>
                 <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
-                  {day.status}
+                  {getDayStatusLabel(day)}
                 </span>
               </button>
             ))}

@@ -33,8 +33,14 @@ function ErrorBanner({
   }
 
   return (
-    <div className="flex gap-3 rounded-2xl border border-[color:var(--app-danger)]/40 bg-[color:var(--app-danger)]/12 px-4 py-3 text-sm leading-6 text-[color:var(--app-danger)] shadow-[0_10px_24px_rgba(122,52,39,0.08)]">
-      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[color:var(--app-danger)] text-xs font-bold text-white">
+    <div
+      role="alert"
+      className="flex gap-3 rounded-2xl border border-[color:var(--app-danger)]/40 bg-[color:var(--app-danger)]/12 px-4 py-3 text-sm leading-6 text-[color:var(--app-danger)] shadow-[0_10px_24px_rgba(122,52,39,0.08)]"
+    >
+      <span
+        aria-hidden="true"
+        className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[color:var(--app-danger)] text-xs font-bold text-white"
+      >
         !
       </span>
       <div className="min-w-0 font-medium">{content}</div>

@@ -17,7 +17,7 @@ export function SiteTabs({ currentSiteId, sites }: SiteTabsProps) {
 
   return (
     <nav aria-label="House switcher" className="flex justify-center">
-      <div className="grid w-full grid-cols-2 gap-2 rounded-full border border-[color:var(--app-card-border)] bg-[color:var(--app-card)]/90 p-2 shadow-[var(--app-shadow)] sm:inline-grid sm:w-auto">
+      <div className="grid w-full grid-cols-2 gap-2 rounded-full border border-[color:var(--app-card-border)] bg-[color:var(--app-card)]/90 p-2 shadow-[var(--app-shadow)] sm:w-auto sm:auto-cols-fr sm:grid-flow-col sm:grid-cols-none">
         {sites.map((site) => {
           const isCurrent = site.id === currentSiteId;
 
