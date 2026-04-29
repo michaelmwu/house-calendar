@@ -58,6 +58,8 @@ type CalendarWeek = {
 };
 
 type PreviewPosition = {
+  anchorOffsetX?: number;
+  placement?: "above" | "below";
   x: number;
   y: number;
 };
@@ -369,19 +371,66 @@ function getPointerPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
   };
 }
 
-function getAnchorPreviewPosition(anchor: HTMLElement): PreviewPosition {
+function getClickPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
   if (typeof window === "undefined") {
-    return { x: 16, y: 16 };
+    return { x: x + 14, y: y + 14 };
   }
 
   const viewportPadding = 16;
+  const isDesktopLayout = window.matchMedia("(min-width: 1024px)").matches;
   const previewWidth = Math.max(
     0,
     Math.min(288, window.innerWidth - viewportPadding * 2),
   );
   const previewHeight = Math.max(
     0,
-    Math.min(448, window.innerHeight - viewportPadding * 2),
+    Math.min(
+      isDesktopLayout ? 448 : 256,
+      window.innerHeight - viewportPadding * 2,
+    ),
+  );
+  const centeredX = x - previewWidth / 2;
+  const belowY = y + 14;
+  const aboveY = y - previewHeight - 14;
+  const hasRoomBelow =
+    belowY + previewHeight <= window.innerHeight - viewportPadding;
+
+  const nextX = Math.max(
+    viewportPadding,
+    Math.min(centeredX, window.innerWidth - previewWidth - viewportPadding),
+  );
+  const nextY = Math.max(
+    viewportPadding,
+    hasRoomBelow
+      ? belowY
+      : Math.min(aboveY, window.innerHeight - previewHeight - viewportPadding),
+  );
+
+  return {
+    anchorOffsetX: Math.max(24, Math.min(x - nextX, previewWidth - 24)),
+    placement: hasRoomBelow ? "below" : "above",
+    x: nextX,
+    y: nextY,
+  };
+}
+
+function getAnchorPreviewPosition(anchor: HTMLElement): PreviewPosition {
+  if (typeof window === "undefined") {
+    return { x: 16, y: 16 };
+  }
+
+  const viewportPadding = 16;
+  const isDesktopLayout = window.matchMedia("(min-width: 1024px)").matches;
+  const previewWidth = Math.max(
+    0,
+    Math.min(288, window.innerWidth - viewportPadding * 2),
+  );
+  const previewHeight = Math.max(
+    0,
+    Math.min(
+      isDesktopLayout ? 448 : 256,
+      window.innerHeight - viewportPadding * 2,
+    ),
   );
   const rect = anchor.getBoundingClientRect();
   const centeredX = rect.left + rect.width / 2 - previewWidth / 2;
@@ -446,6 +495,18 @@ export function Calendar({
     setPreviewDate(dayDate);
     setPreviewPosition(getAnchorPreviewPosition(anchor));
   };
+  const updatePreviewFromClick = (
+    dayDate: string,
+    event: MouseEvent<HTMLButtonElement>,
+  ) => {
+    setPreviewDate(dayDate);
+    setPreviewPosition(
+      getClickPreviewPosition({
+        x: event.clientX,
+        y: event.clientY,
+      }),
+    );
+  };
   const updatePreviewFromMouse = (
     dayDate: string,
     event: MouseEvent<HTMLButtonElement>,
@@ -466,7 +527,7 @@ export function Calendar({
     setSelectedDate(dayDate);
 
     if (!canUseHoverPreview()) {
-      updatePreviewFromAnchor(dayDate, event.currentTarget);
+      updatePreviewFromClick(dayDate, event);
     }
   };
 
@@ -713,12 +774,26 @@ export function Calendar({
 
       {previewDay && previewPosition ? (
         <div
-          className="pointer-events-none fixed z-50 w-[min(18rem,calc(100vw-2rem))] max-h-[min(28rem,calc(100vh-2rem))] overflow-y-auto rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-4 text-[var(--app-foreground)] shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur"
+          className="pointer-events-none fixed z-50 w-[min(18rem,calc(100vw-2rem))] max-h-64 overflow-y-auto rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-3 text-[var(--app-foreground)] shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur lg:max-h-[min(28rem,calc(100vh-2rem))] lg:p-4"
           style={{
             left: previewPosition.x,
             top: previewPosition.y,
           }}
         >
+          {previewPosition.placement ? (
+            <span
+              aria-hidden="true"
+              className={`absolute h-3 w-3 rotate-45 border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] ${
+                previewPosition.placement === "below"
+                  ? "top-1 border-r-0 border-b-0"
+                  : "bottom-1 border-t-0 border-l-0"
+              }`}
+              style={{
+                left: previewPosition.anchorOffsetX,
+                transform: "translateX(-50%) rotate(45deg)",
+              }}
+            />
+          ) : null}
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.28em] text-[var(--app-muted)]">
