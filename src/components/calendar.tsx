@@ -333,16 +333,14 @@ function formatPanelDate(date: string): string {
   return format(parseISO(date), "MMM d");
 }
 
-function getPreviewHeading(
-  previewDay: DailyAvailability,
-  selectedDay: DailyAvailability,
-): string {
-  return previewDay.date === selectedDay.date
-    ? "Selected date"
-    : "Preview date";
+function canUseHoverPreview(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches
+  );
 }
 
-function getPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
+function getPointerPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
   if (typeof window === "undefined") {
     return { x: x + 18, y: y + 18 };
   }
@@ -358,8 +356,52 @@ function getPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
   );
 
   return {
-    x: Math.min(x + 18, window.innerWidth - previewWidth - viewportPadding),
-    y: Math.min(y + 18, window.innerHeight - previewHeight - viewportPadding),
+    x: Math.max(
+      viewportPadding,
+      Math.min(x + 18, window.innerWidth - previewWidth - viewportPadding),
+    ),
+    y: Math.max(
+      viewportPadding,
+      Math.min(y + 18, window.innerHeight - previewHeight - viewportPadding),
+    ),
+  };
+}
+
+function getAnchorPreviewPosition(anchor: HTMLElement): PreviewPosition {
+  if (typeof window === "undefined") {
+    return { x: 16, y: 16 };
+  }
+
+  const viewportPadding = 16;
+  const previewWidth = Math.max(
+    0,
+    Math.min(288, window.innerWidth - viewportPadding * 2),
+  );
+  const previewHeight = Math.max(
+    0,
+    Math.min(448, window.innerHeight - viewportPadding * 2),
+  );
+  const rect = anchor.getBoundingClientRect();
+  const centeredX = rect.left + rect.width / 2 - previewWidth / 2;
+  const belowY = rect.bottom + 10;
+  const aboveY = rect.top - previewHeight - 10;
+  const hasRoomBelow =
+    belowY + previewHeight <= window.innerHeight - viewportPadding;
+
+  return {
+    x: Math.max(
+      viewportPadding,
+      Math.min(centeredX, window.innerWidth - previewWidth - viewportPadding),
+    ),
+    y: Math.max(
+      viewportPadding,
+      hasRoomBelow
+        ? belowY
+        : Math.min(
+            aboveY,
+            window.innerHeight - previewHeight - viewportPadding,
+          ),
+    ),
   };
 }
 
@@ -393,18 +435,37 @@ export function Calendar({
     setPreviewDate(null);
     setPreviewPosition(null);
   };
-  const updatePreview = (dayDate: string) => setPreviewDate(dayDate);
+  const clearHoverPreview = () => {
+    if (canUseHoverPreview()) {
+      clearPreview();
+    }
+  };
+  const updatePreviewFromAnchor = (dayDate: string, anchor: HTMLElement) => {
+    setPreviewDate(dayDate);
+    setPreviewPosition(getAnchorPreviewPosition(anchor));
+  };
   const updatePreviewFromMouse = (
     dayDate: string,
     event: MouseEvent<HTMLButtonElement>,
   ) => {
+    if (!canUseHoverPreview()) {
+      return;
+    }
+
     setPreviewDate(dayDate);
     setPreviewPosition(
-      getPreviewPosition({
+      getPointerPreviewPosition({
         x: event.clientX,
         y: event.clientY,
       }),
     );
+  };
+  const selectDay = (dayDate: string, event: MouseEvent<HTMLButtonElement>) => {
+    setSelectedDate(dayDate);
+
+    if (!canUseHoverPreview()) {
+      updatePreviewFromAnchor(dayDate, event.currentTarget);
+    }
   };
 
   useEffect(() => {
@@ -497,30 +558,6 @@ export function Calendar({
           </div>
         </div>
 
-        <div className="border-b border-[color:var(--app-card-border)] px-5 py-3 lg:hidden">
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2">
-            <div className="min-w-0">
-              <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--app-muted)]">
-                {getPreviewHeading(previewDay ?? selectedDay, selectedDay)}
-              </p>
-              <p className="mt-1 truncate text-sm font-semibold">
-                {formatPanelDate((previewDay ?? selectedDay).date)}
-                <span className="ml-2 font-normal text-[var(--app-muted)]">
-                  {format(parseISO((previewDay ?? selectedDay).date), "EEE")}
-                </span>
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2 rounded-full border border-[color:var(--app-card-border)] bg-white/80 px-2.5 py-1 text-xs font-medium capitalize">
-              <span
-                className={`h-2.5 w-2.5 rounded-full ${
-                  statusDotClasses[(previewDay ?? selectedDay).status]
-                }`}
-              />
-              {(previewDay ?? selectedDay).status}
-            </div>
-          </div>
-        </div>
-
         <div className="p-3 sm:p-6">
           <div className="min-w-0 pb-2">
             <div className="min-w-0 space-y-3 sm:space-y-4">
@@ -588,16 +625,23 @@ export function Calendar({
                               key={cell.id}
                               aria-label={buildDayAriaLabel(day)}
                               type="button"
-                              onClick={() => setSelectedDate(day.date)}
-                              onFocus={() => updatePreview(day.date)}
+                              onClick={(event) => selectDay(day.date, event)}
+                              onFocus={(event) => {
+                                if (canUseHoverPreview()) {
+                                  updatePreviewFromAnchor(
+                                    day.date,
+                                    event.currentTarget,
+                                  );
+                                }
+                              }}
                               onMouseEnter={(event) =>
                                 updatePreviewFromMouse(day.date, event)
                               }
                               onMouseMove={(event) =>
                                 updatePreviewFromMouse(day.date, event)
                               }
-                              onMouseLeave={clearPreview}
-                              onBlur={clearPreview}
+                              onMouseLeave={clearHoverPreview}
+                              onBlur={clearHoverPreview}
                               className={`aspect-[0.78] rounded-xl p-1.5 text-left transition sm:aspect-[0.95] sm:min-h-[5.75rem] sm:rounded-2xl sm:p-2 ${
                                 cellClasses
                               } ${stateClasses} ${
@@ -667,7 +711,7 @@ export function Calendar({
 
       {previewDay && previewPosition ? (
         <div
-          className="pointer-events-none fixed z-50 hidden w-[min(18rem,calc(100vw-2rem))] max-h-[min(28rem,calc(100vh-2rem))] overflow-y-auto rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-4 text-[var(--app-foreground)] shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur lg:block"
+          className="pointer-events-none fixed z-50 w-[min(18rem,calc(100vw-2rem))] max-h-[min(28rem,calc(100vh-2rem))] overflow-y-auto rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-4 text-[var(--app-foreground)] shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur"
           style={{
             left: previewPosition.x,
             top: previewPosition.y,
@@ -878,14 +922,18 @@ export function Calendar({
               <button
                 key={day.date}
                 type="button"
-                onClick={() => setSelectedDate(day.date)}
-                onFocus={() => updatePreview(day.date)}
+                onClick={(event) => selectDay(day.date, event)}
+                onFocus={(event) => {
+                  if (canUseHoverPreview()) {
+                    updatePreviewFromAnchor(day.date, event.currentTarget);
+                  }
+                }}
                 onMouseEnter={(event) =>
                   updatePreviewFromMouse(day.date, event)
                 }
                 onMouseMove={(event) => updatePreviewFromMouse(day.date, event)}
-                onMouseLeave={clearPreview}
-                onBlur={clearPreview}
+                onMouseLeave={clearHoverPreview}
+                onBlur={clearHoverPreview}
                 className="flex w-full items-center justify-between rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-left text-sm"
               >
                 <span>{format(parseISO(day.date), "MMM d")}</span>
