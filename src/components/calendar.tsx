@@ -796,10 +796,7 @@ export function Calendar({
           ) : null}
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.28em] text-[var(--app-muted)]">
-                Preview date
-              </p>
-              <h3 className="mt-1.5 text-base font-semibold tracking-[-0.04em] lg:mt-2 lg:text-lg">
+              <h3 className="text-base font-semibold tracking-[-0.04em] lg:text-lg">
                 {formatPanelDate(previewDay.date)}
               </h3>
               <p className="text-xs text-[var(--app-muted)]">
