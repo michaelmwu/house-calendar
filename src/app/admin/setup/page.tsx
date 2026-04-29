@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,15 +19,26 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-function ErrorBanner({ message }: { message?: string }) {
-  if (!message) {
+function ErrorBanner({
+  children,
+  message,
+}: {
+  children?: ReactNode;
+  message?: string;
+}) {
+  const content = children ?? message;
+
+  if (!content) {
     return null;
   }
 
   return (
-    <p className="rounded-2xl border border-[color:var(--app-danger)]/25 bg-[color:var(--app-danger)]/8 px-4 py-3 text-sm text-[color:var(--app-danger)]">
-      {message}
-    </p>
+    <div className="flex gap-3 rounded-2xl border border-[color:var(--app-danger)]/40 bg-[color:var(--app-danger)]/12 px-4 py-3 text-sm leading-6 text-[color:var(--app-danger)] shadow-[0_10px_24px_rgba(122,52,39,0.08)]">
+      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[color:var(--app-danger)] text-xs font-bold text-white">
+        !
+      </span>
+      <div className="min-w-0 font-medium">{content}</div>
+    </div>
   );
 }
 
@@ -73,7 +85,13 @@ export default async function AdminSetupPage({
             ) : null}
 
             {!authState.bootstrapCodeReady ? (
-              <ErrorBanner message="No valid bootstrap code exists yet. Run `bun run admin:bootstrap-code` and use the printed code here." />
+              <ErrorBanner>
+                <p>No valid bootstrap code exists yet.</p>
+                <code className="mt-2 block w-fit rounded-lg bg-white/80 px-2 py-1 font-[family-name:var(--font-mono)] text-xs text-[color:var(--app-danger)]">
+                  bun run admin:bootstrap-code
+                </code>
+                <p className="mt-2">Run it and use the printed code here.</p>
+              </ErrorBanner>
             ) : null}
           </div>
 
@@ -139,7 +157,7 @@ export default async function AdminSetupPage({
           <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.28em] text-[var(--app-muted)]">
             What this does
           </p>
-          <ul className="mt-5 space-y-4 text-sm leading-6 text-[var(--app-muted)]">
+          <ul className="mt-5 grid gap-3 text-sm leading-6 text-[var(--app-muted)]">
             <li>Consumes a one-time setup code stored only by hash.</li>
             <li>Creates the single admin user for this deployment.</li>
             <li>Stores the admin email in Postgres, not in env.</li>

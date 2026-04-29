@@ -73,7 +73,7 @@
         {
           "name": "trusted-friends",
           "scope": "request",
-          "canRequest": true
+          "canRequest": false
         }
       ],
       "inference": {
@@ -169,7 +169,7 @@
         {
           "name": "trusted-friends",
           "scope": "request",
-          "canRequest": true
+          "canRequest": false
         }
       ],
       "inference": {
