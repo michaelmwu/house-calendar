@@ -37,14 +37,10 @@ const statusDotClasses = {
   unknown: "bg-stone-400",
 } as const;
 
-type StatusKey = keyof typeof statusDotClasses;
-type RoomStatusKey = DailyAvailability["rooms"][number]["status"];
+const hoverPreviewMediaQuery =
+  "(min-width: 1024px) and (hover: hover) and (pointer: fine)";
 
-const roomStatusDotClasses: Record<RoomStatusKey, string> = {
-  free: "bg-emerald-500",
-  tentative: "bg-sky-500",
-  occupied: "bg-[color:var(--app-foreground)]",
-};
+type StatusKey = keyof typeof statusDotClasses;
 
 type CalendarCell = {
   id: string;
@@ -54,6 +50,7 @@ type CalendarCell = {
 
 type CalendarMonthMarker = {
   label: string;
+  monthKey: string;
   startColumn: number;
 };
 
@@ -64,6 +61,8 @@ type CalendarWeek = {
 };
 
 type PreviewPosition = {
+  anchorOffsetX?: number;
+  placement?: "above" | "below";
   x: number;
   y: number;
 };
@@ -129,6 +128,7 @@ export function buildWeeks(days: DailyAvailability[]): CalendarWeek[] {
       if (markerPriority > monthMarkerPriority) {
         monthMarker = {
           label: format(cellDate, "MMMM yyyy"),
+          monthKey: format(cellDate, "yyyy-MM"),
           startColumn: offset + 1,
         };
         monthMarkerPriority = markerPriority;
@@ -167,6 +167,19 @@ function getDayStatusLabel(day: DailyAvailability): string {
       return hasSingleRoom ? "Occupied" : "Whole house occupied";
     case "unknown":
       return "Needs interpretation";
+  }
+}
+
+function getRoomStatusLabel(
+  status: DailyAvailability["rooms"][number]["status"],
+): string {
+  switch (status) {
+    case "free":
+      return "Free";
+    case "tentative":
+      return "Tentative";
+    case "occupied":
+      return "Occupied";
   }
 }
 
@@ -229,17 +242,6 @@ export function getWholeHouseDetailLabel(day: DailyAvailability): string {
   }
 
   return formatRoomSummary(day);
-}
-
-function getRoomStatusLabel(status: RoomStatusKey): string {
-  switch (status) {
-    case "free":
-      return "Free";
-    case "tentative":
-      return "Tentative";
-    case "occupied":
-      return "Occupied";
-  }
 }
 
 export function buildDayAriaLabel(day: DailyAvailability): string {
@@ -349,16 +351,7 @@ function formatPanelDate(date: string): string {
   return format(parseISO(date), "MMM d");
 }
 
-function getPreviewHeading(
-  previewDay: DailyAvailability,
-  selectedDay: DailyAvailability,
-): string {
-  return previewDay.date === selectedDay.date
-    ? "Selected date"
-    : "Preview date";
-}
-
-function getPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
+function getPointerPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
   if (typeof window === "undefined") {
     return { x: x + 18, y: y + 18 };
   }
@@ -374,8 +367,95 @@ function getPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
   );
 
   return {
-    x: Math.min(x + 18, window.innerWidth - previewWidth - viewportPadding),
-    y: Math.min(y + 18, window.innerHeight - previewHeight - viewportPadding),
+    x: Math.max(
+      viewportPadding,
+      Math.min(x + 18, window.innerWidth - previewWidth - viewportPadding),
+    ),
+    y: Math.max(
+      viewportPadding,
+      Math.min(y + 18, window.innerHeight - previewHeight - viewportPadding),
+    ),
+  };
+}
+
+function getAnchorPreviewPosition(anchor: HTMLElement): PreviewPosition {
+  if (typeof window === "undefined") {
+    return { x: 16, y: 16 };
+  }
+
+  const viewportPadding = 16;
+  const previewWidth = Math.max(
+    0,
+    Math.min(288, window.innerWidth - viewportPadding * 2),
+  );
+  const previewHeight = Math.max(
+    0,
+    Math.min(448, window.innerHeight - viewportPadding * 2),
+  );
+  const rect = anchor.getBoundingClientRect();
+  const centeredX = rect.left + rect.width / 2 - previewWidth / 2;
+  const belowY = rect.bottom + 10;
+  const aboveY = rect.top - previewHeight - 10;
+  const hasRoomBelow =
+    belowY + previewHeight <= window.innerHeight - viewportPadding;
+
+  return {
+    x: Math.max(
+      viewportPadding,
+      Math.min(centeredX, window.innerWidth - previewWidth - viewportPadding),
+    ),
+    y: Math.max(
+      viewportPadding,
+      hasRoomBelow
+        ? belowY
+        : Math.min(
+            aboveY,
+            window.innerHeight - previewHeight - viewportPadding,
+          ),
+    ),
+  };
+}
+
+function getClickPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
+  if (typeof window === "undefined") {
+    return { x: x + 14, y: y + 14 };
+  }
+
+  const viewportPadding = 16;
+  const isDesktopLayout = window.matchMedia("(min-width: 1024px)").matches;
+  const previewWidth = Math.max(
+    0,
+    Math.min(288, window.innerWidth - viewportPadding * 2),
+  );
+  const previewHeight = Math.max(
+    0,
+    Math.min(
+      isDesktopLayout ? 448 : 256,
+      window.innerHeight - viewportPadding * 2,
+    ),
+  );
+  const centeredX = x - previewWidth / 2;
+  const belowY = y + 14;
+  const aboveY = y - previewHeight - 14;
+  const hasRoomBelow =
+    belowY + previewHeight <= window.innerHeight - viewportPadding;
+
+  const nextX = Math.max(
+    viewportPadding,
+    Math.min(centeredX, window.innerWidth - previewWidth - viewportPadding),
+  );
+  const nextY = Math.max(
+    viewportPadding,
+    hasRoomBelow
+      ? belowY
+      : Math.min(aboveY, window.innerHeight - previewHeight - viewportPadding),
+  );
+
+  return {
+    anchorOffsetX: Math.max(24, Math.min(x - nextX, previewWidth - 24)),
+    placement: hasRoomBelow ? "below" : "above",
+    x: nextX,
+    y: nextY,
   };
 }
 
@@ -404,39 +484,75 @@ export function Calendar({
   const [previewDate, setPreviewDate] = useState<string | null>(null);
   const [previewPosition, setPreviewPosition] =
     useState<PreviewPosition | null>(null);
+  const [canHoverPreview, setCanHoverPreview] = useState(false);
 
   const clearPreview = () => {
     setPreviewDate(null);
     setPreviewPosition(null);
   };
+  const clearHoverPreview = () => {
+    if (canHoverPreview) {
+      clearPreview();
+    }
+  };
+  const updatePreviewFromFocus = (
+    dayDate: string,
+    event: FocusEvent<HTMLButtonElement>,
+  ) => {
+    if (!canHoverPreview || !event.currentTarget.matches(":focus-visible")) {
+      return;
+    }
 
-  const updatePreviewFromMouse = (
+    setPreviewDate(dayDate);
+    setPreviewPosition(getAnchorPreviewPosition(event.currentTarget));
+  };
+  const updatePreviewFromClick = (
     dayDate: string,
     event: MouseEvent<HTMLButtonElement>,
   ) => {
     setPreviewDate(dayDate);
     setPreviewPosition(
-      getPreviewPosition({
+      getClickPreviewPosition({
         x: event.clientX,
         y: event.clientY,
       }),
     );
   };
-
-  const updatePreviewFromFocus = (
+  const updatePreviewFromMouse = (
     dayDate: string,
-    event: FocusEvent<HTMLButtonElement>,
+    event: MouseEvent<HTMLButtonElement>,
   ) => {
-    const rect = event.currentTarget.getBoundingClientRect();
+    if (!canHoverPreview) {
+      return;
+    }
 
     setPreviewDate(dayDate);
     setPreviewPosition(
-      getPreviewPosition({
-        x: rect.right,
-        y: rect.top,
+      getPointerPreviewPosition({
+        x: event.clientX,
+        y: event.clientY,
       }),
     );
   };
+  const selectDay = (dayDate: string, event: MouseEvent<HTMLButtonElement>) => {
+    setSelectedDate(dayDate);
+
+    if (!canHoverPreview) {
+      updatePreviewFromClick(dayDate, event);
+    }
+  };
+
+  useEffect(() => {
+    const query = window.matchMedia(hoverPreviewMediaQuery);
+    const updateHoverPreviewCapability = () =>
+      setCanHoverPreview(query.matches);
+
+    updateHoverPreviewCapability();
+    query.addEventListener("change", updateHoverPreviewCapability);
+
+    return () =>
+      query.removeEventListener("change", updateHoverPreviewCapability);
+  }, []);
 
   useEffect(() => {
     setSelectedDate((currentSelectedDate) =>
@@ -487,8 +603,6 @@ export function Calendar({
     ? (days.find((day) => day.date === previewDate) ?? null)
     : null;
   const hasSingleRoom = days[0]?.rooms.length === 1;
-  const hidePreviewRoomBreakdownOnMobile =
-    previewDay?.status === "unavailable" && !hasSingleRoom;
   const legendItems: ReadonlyArray<readonly [StatusKey, string]> = hasSingleRoom
     ? [
         ["available", "Room free"],
@@ -512,151 +626,167 @@ export function Calendar({
   }
 
   return (
-    <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <div className="rounded-[1.75rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] shadow-[var(--app-shadow)]">
-        <div className="flex items-center justify-between gap-4 border-b border-[color:var(--app-card-border)] px-5 py-4 sm:px-6">
+    <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="min-w-0 rounded-[1.75rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] shadow-[var(--app-shadow)]">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[color:var(--app-card-border)] px-5 py-4 sm:px-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">
               {houseName}
             </h1>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-[color:var(--app-card-border)] bg-white/70 px-3 py-1.5 text-xs font-medium text-[var(--app-muted)]">
+          <div className="flex items-center gap-2 rounded-full border border-[color:var(--app-accent)]/25 bg-[color:var(--app-accent)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--app-accent-strong)]">
             <span
-              className={`h-2.5 w-2.5 rounded-full ${
+              className={`h-2.5 w-2.5 shrink-0 rounded-full ${
                 requestEnabled ? "bg-emerald-500" : "bg-stone-400"
               }`}
             />
-            {requestEnabled ? "Requests enabled" : "View only"}
+            {requestEnabled ? "Stay requests enabled" : "View only"}
           </div>
         </div>
 
-        <div className="grid gap-4 p-4 sm:p-6">
-          <div className="grid grid-cols-7 gap-2 px-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.24em] text-[var(--app-muted)]">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label) => (
-              <div key={label} className="pb-1 text-center">
-                {label}
-              </div>
-            ))}
-          </div>
-
-          <div className="h-[78vh] overflow-y-auto pr-1">
-            <div className="space-y-2">
-              {weeks.map((week) => (
-                <div key={week.id} className="space-y-2">
-                  {week.monthMarker ? (
-                    <div className="grid grid-cols-7 gap-2 px-1">
-                      <div
-                        className="flex"
-                        style={{
-                          gridColumn: `${week.monthMarker.startColumn} / -1`,
-                        }}
-                      >
-                        <div className="flex w-full items-center rounded-full border border-[color:var(--app-card-border)] bg-white/88 px-2.5 py-1 shadow-[0_1px_0_rgba(31,28,22,0.04)]">
-                          <p className="shrink-0 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--app-muted)]">
-                            {week.monthMarker.label}
-                          </p>
-                        </div>
-                      </div>
+        <div className="p-3 sm:p-6">
+          <div className="min-w-0 pb-2">
+            <div className="min-w-0 space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-7 gap-1 px-1 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--app-muted)] sm:gap-2 sm:text-[11px] sm:tracking-[0.24em]">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                  (label) => (
+                    <div key={label} className="pb-1 text-center">
+                      {label}
                     </div>
-                  ) : null}
+                  ),
+                )}
+              </div>
 
-                  <div className="grid grid-cols-7 gap-2">
-                    {week.cells.map((cell) => {
-                      if (!cell.day) {
-                        return (
-                          <div
-                            key={cell.id}
-                            className="aspect-[0.95] rounded-2xl bg-transparent"
-                          />
-                        );
-                      }
-
-                      const day = cell.day;
-                      const isSelected = selectedDay.date === day.date;
-                      const isPastDay = isPastDate(day.date, today);
-                      const cellClasses = isPastDay
-                        ? "cursor-pointer bg-stone-100 text-stone-500 ring-1 ring-stone-200 hover:bg-stone-200"
-                        : statusClasses[day.status];
-                      const roomBarClass = isPastDay
-                        ? "bg-stone-300/80"
-                        : "bg-white/75";
-                      const dotClass = isPastDay
-                        ? "bg-stone-300"
-                        : statusDotClasses[day.status];
-
-                      return (
-                        <button
-                          key={cell.id}
-                          aria-label={buildDayAriaLabel(day)}
-                          type="button"
-                          onClick={() => setSelectedDate(day.date)}
-                          onFocus={(event) =>
-                            updatePreviewFromFocus(day.date, event)
-                          }
-                          onMouseEnter={(event) =>
-                            updatePreviewFromMouse(day.date, event)
-                          }
-                          onMouseMove={(event) =>
-                            updatePreviewFromMouse(day.date, event)
-                          }
-                          onMouseLeave={clearPreview}
-                          onBlur={clearPreview}
-                          className={`aspect-[0.95] rounded-2xl p-2 text-left transition ${
-                            cellClasses
-                          } ${isSelected ? "ring-2 ring-[color:var(--app-foreground)]" : ""}`}
-                        >
-                          <div className="flex h-full flex-col justify-between">
-                            <div className="flex items-start justify-between gap-2">
-                              <span className="block text-sm font-semibold">
-                                {cell.dateLabel}
-                              </span>
-                              <span
-                                className={`mt-1 h-2.5 w-2.5 rounded-full ${dotClass}`}
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              {day.events.length > 0 ? (
-                                <p className="truncate text-[10px] font-medium text-current/85">
-                                  {formatDayEventSummary(
-                                    day.events[0],
-                                    timedNotes,
-                                    timezone,
-                                  )}
-                                  {day.events.length > 1
-                                    ? ` +${day.events.length - 1}`
-                                    : ""}
-                                </p>
-                              ) : null}
-                              <p className="truncate text-[11px] font-medium capitalize">
-                                {day.status}
+              <div className="h-[70vh] overflow-y-auto pr-1 sm:h-[78vh]">
+                <div className="space-y-2 px-1 pb-1">
+                  {weeks.map((week) => (
+                    <div key={week.id} className="space-y-2">
+                      {week.monthMarker ? (
+                        <div className="grid grid-cols-7 gap-1 px-1 sm:gap-2">
+                          <div className="col-span-full flex justify-center">
+                            <div className="flex w-full items-center rounded-full border border-[color:var(--app-card-border)] bg-white/88 px-2.5 py-1 shadow-[0_1px_0_rgba(31,28,22,0.04)]">
+                              <p className="shrink-0 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--app-muted)]">
+                                {week.monthMarker.label}
                               </p>
-                              <div className="flex gap-1">
-                                {day.rooms.map((room) => (
-                                  <span
-                                    key={room.id}
-                                    className={`h-1.5 flex-1 rounded-full ${
-                                      room.status === "occupied"
-                                        ? isPastDay
-                                          ? "bg-stone-400"
-                                          : "bg-[color:var(--app-foreground)]/70"
-                                        : room.status === "tentative"
-                                          ? isPastDay
-                                            ? "bg-stone-300"
-                                            : "bg-sky-400/80"
-                                          : roomBarClass
-                                    }`}
-                                  />
-                                ))}
-                              </div>
                             </div>
                           </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                        </div>
+                      ) : null}
+
+                      <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                        {week.cells.map((cell) => {
+                          if (!cell.day) {
+                            return (
+                              <div
+                                key={cell.id}
+                                className="aspect-[0.95] rounded-2xl bg-transparent"
+                              />
+                            );
+                          }
+
+                          const day = cell.day;
+                          const isSelected = selectedDay.date === day.date;
+                          const isToday = day.date === today;
+                          const isPastDay = isPastDate(day.date, today);
+                          const isCarryoverMonthDay = week.monthMarker
+                            ? day.date.slice(0, 7) !== week.monthMarker.monthKey
+                            : false;
+                          const cellClasses = isPastDay
+                            ? "cursor-pointer bg-stone-100 text-stone-500 ring-1 ring-stone-200 hover:bg-stone-200"
+                            : statusClasses[day.status];
+                          const stateClasses = isSelected
+                            ? "ring-2 ring-[color:var(--app-foreground)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.65)]"
+                            : isToday
+                              ? "ring-2 ring-[color:var(--app-accent)]"
+                              : "";
+                          const roomBarClass = isPastDay
+                            ? "bg-stone-300/80"
+                            : "bg-white/75";
+                          const dotClass = isPastDay
+                            ? "bg-stone-300"
+                            : statusDotClasses[day.status];
+
+                          return (
+                            <button
+                              key={cell.id}
+                              aria-current={isToday ? "date" : undefined}
+                              aria-label={buildDayAriaLabel(day)}
+                              aria-pressed={isSelected}
+                              type="button"
+                              onClick={(event) => selectDay(day.date, event)}
+                              onFocus={(event) =>
+                                updatePreviewFromFocus(day.date, event)
+                              }
+                              onMouseEnter={(event) =>
+                                updatePreviewFromMouse(day.date, event)
+                              }
+                              onMouseMove={(event) =>
+                                updatePreviewFromMouse(day.date, event)
+                              }
+                              onMouseLeave={clearHoverPreview}
+                              onBlur={clearHoverPreview}
+                              className={`aspect-[0.78] rounded-xl p-1.5 text-left transition sm:aspect-[0.95] sm:min-h-[5.75rem] sm:rounded-2xl sm:p-2 ${
+                                cellClasses
+                              } ${stateClasses} ${
+                                isCarryoverMonthDay
+                                  ? "max-sm:bg-stone-50 max-sm:text-stone-700 max-sm:ring-stone-200 max-sm:hover:bg-stone-100"
+                                  : ""
+                              }`}
+                            >
+                              <div className="flex h-full flex-col justify-between">
+                                <div className="flex items-start justify-between gap-2">
+                                  <span className="block min-w-0 text-xs font-semibold sm:text-sm">
+                                    {cell.dateLabel}
+                                  </span>
+                                  <span
+                                    className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full sm:mt-1 sm:h-3 sm:w-3 ${dotClass}`}
+                                  />
+                                </div>
+
+                                <div className="space-y-0.5 sm:space-y-1">
+                                  {day.events.length > 0 ? (
+                                    <p className="truncate text-[10px] font-medium text-current/85">
+                                      {formatDayEventSummary(
+                                        day.events[0],
+                                        timedNotes,
+                                        timezone,
+                                      )}
+                                      {day.events.length > 1
+                                        ? ` +${day.events.length - 1}`
+                                        : ""}
+                                    </p>
+                                  ) : null}
+                                  <p className="truncate text-[9px] font-medium capitalize sm:text-[11px]">
+                                    {day.status}
+                                  </p>
+                                  <div className="flex gap-0.5 sm:gap-1">
+                                    {day.rooms.map((room) => (
+                                      <span
+                                        key={room.id}
+                                        className={`h-1 flex-1 rounded-full sm:h-1.5 ${
+                                          room.status === "occupied"
+                                            ? isPastDay
+                                              ? "bg-stone-400"
+                                              : "bg-[color:var(--app-foreground)]/70"
+                                            : room.status === "tentative"
+                                              ? isPastDay
+                                                ? "bg-stone-300"
+                                                : "bg-sky-400/80"
+                                              : roomBarClass
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         </div>
@@ -664,25 +794,36 @@ export function Calendar({
 
       {previewDay && previewPosition ? (
         <div
-          className="pointer-events-auto fixed z-50 w-[min(18rem,calc(100vw-2rem))] max-h-[min(28rem,calc(100vh-2rem))] overflow-y-auto rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-white/95 p-4 shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur sm:pointer-events-none"
+          className="pointer-events-none fixed z-50 w-[min(18rem,calc(100vw-2rem))] max-h-64 overflow-y-auto rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-3 text-[var(--app-foreground)] shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur lg:max-h-[min(28rem,calc(100vh-2rem))] lg:p-4"
           style={{
             left: previewPosition.x,
             top: previewPosition.y,
           }}
         >
-          <div className="flex items-center justify-between gap-3">
+          {previewPosition.placement ? (
+            <span
+              aria-hidden="true"
+              className={`absolute hidden h-3 w-3 rotate-45 border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] lg:block ${
+                previewPosition.placement === "below"
+                  ? "top-1 border-r-0 border-b-0"
+                  : "bottom-1 border-t-0 border-l-0"
+              }`}
+              style={{
+                left: previewPosition.anchorOffsetX,
+                transform: "translateX(-50%) rotate(45deg)",
+              }}
+            />
+          ) : null}
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.28em] text-[var(--app-muted)]">
-                {getPreviewHeading(previewDay, selectedDay)}
-              </p>
-              <h3 className="mt-2 text-lg font-semibold tracking-[-0.04em]">
+              <h3 className="text-base font-semibold tracking-[-0.04em] lg:text-lg">
                 {formatPanelDate(previewDay.date)}
               </h3>
               <p className="text-xs text-[var(--app-muted)]">
                 {format(parseISO(previewDay.date), "EEEE")}
               </p>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--app-card-border)] bg-white/90 px-3 py-1 text-xs font-medium">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--app-card-border)] bg-white/80 px-3 py-1 text-xs font-medium capitalize">
               <span
                 className={`h-2 w-2 rounded-full ${
                   statusDotClasses[previewDay.status]
@@ -692,26 +833,15 @@ export function Calendar({
             </div>
           </div>
 
-          <p className="mt-3 text-sm text-[var(--app-muted)]">
+          <p className="mt-2 text-sm text-[var(--app-muted)] lg:mt-3">
             {formatRoomSummary(previewDay)}
           </p>
 
-          <div className="mt-4 space-y-2 border-t border-[color:var(--app-card-border)] pt-3">
-            <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--app-muted)]">
-              Availability details
-            </p>
-
+          <div className="mt-3 space-y-0 border-t border-[color:var(--app-card-border)] pt-2 lg:mt-4 lg:space-y-2 lg:pt-3">
             {hasSingleRoom ? null : (
-              <div className="rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm">
+              <div className="hidden rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm shadow-[0_1px_0_rgba(31,28,22,0.04)] lg:block">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`h-2 w-2 rounded-full ${
-                        statusDotClasses[previewDay.status]
-                      }`}
-                    />
-                    <span>Whole house</span>
-                  </div>
+                  <span>Whole house</span>
                   <span className="text-right font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
                     {getWholeHouseDetailLabel(previewDay)}
                   </span>
@@ -719,36 +849,27 @@ export function Calendar({
               </div>
             )}
 
-            <div
-              className={`space-y-2 ${
-                hidePreviewRoomBreakdownOnMobile ? "hidden sm:block" : ""
-              }`}
-            >
-              {previewDay.rooms.map((room) => (
-                <div
-                  key={room.id}
-                  className="rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-sm"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`h-2 w-2 rounded-full ${
-                          roomStatusDotClasses[room.status]
-                        }`}
-                      />
-                      <span>{room.name}</span>
-                    </div>
-                    <span className="text-right font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
-                      {getRoomStatusLabel(room.status)}
-                    </span>
-                  </div>
+            {previewDay.rooms.map((room, roomIndex) => (
+              <div
+                key={room.id}
+                className={`py-2 text-sm lg:rounded-xl lg:border lg:border-[color:var(--app-card-border)] lg:bg-white/75 lg:px-3 lg:shadow-[0_1px_0_rgba(31,28,22,0.04)] ${
+                  roomIndex === 0
+                    ? ""
+                    : "border-t border-[color:var(--app-card-border)]/70"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span>{room.name}</span>
+                  <span className="text-right font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
+                    {getRoomStatusLabel(room.status)}
+                  </span>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
 
           {previewDay.events.length > 0 ? (
-            <div className="mt-4 border-t border-[color:var(--app-card-border)] pt-3">
+            <div className="mt-3 border-t border-[color:var(--app-card-border)] pt-2 lg:mt-4 lg:pt-3">
               <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--app-muted)]">
                 {getDayEventSectionLabel(previewDay)}
               </p>
@@ -789,7 +910,7 @@ export function Calendar({
                 statusDotClasses[selectedDay.status]
               }`}
             />
-            {selectedDay.status}
+            {getDayStatusLabel(selectedDay)}
           </div>
 
           <p className="mt-4 text-sm text-[var(--app-muted)]">
@@ -844,7 +965,7 @@ export function Calendar({
                 <div className="flex items-center justify-between gap-3">
                   <span>{room.name}</span>
                   <span className="text-right font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
-                    {room.status}
+                    {getRoomStatusLabel(room.status)}
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-[var(--app-muted)]">
@@ -899,19 +1020,19 @@ export function Calendar({
               <button
                 key={day.date}
                 type="button"
-                onClick={() => setSelectedDate(day.date)}
+                onClick={(event) => selectDay(day.date, event)}
                 onFocus={(event) => updatePreviewFromFocus(day.date, event)}
                 onMouseEnter={(event) =>
                   updatePreviewFromMouse(day.date, event)
                 }
                 onMouseMove={(event) => updatePreviewFromMouse(day.date, event)}
-                onMouseLeave={clearPreview}
-                onBlur={clearPreview}
+                onMouseLeave={clearHoverPreview}
+                onBlur={clearHoverPreview}
                 className="flex w-full items-center justify-between rounded-xl border border-[color:var(--app-card-border)] bg-white/75 px-3 py-2 text-left text-sm"
               >
                 <span>{format(parseISO(day.date), "MMM d")}</span>
                 <span className="font-[family-name:var(--font-mono)] uppercase text-[var(--app-muted)]">
-                  {day.status}
+                  {getDayStatusLabel(day)}
                 </span>
               </button>
             ))}

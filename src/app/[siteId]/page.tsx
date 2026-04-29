@@ -163,6 +163,12 @@ export default async function SiteHomePage({
     houseConfig,
     siteConfig,
   });
+  const warningTitle =
+    source === "sample" ? "Sample data" : "Calendar data notice";
+  const warningMessage =
+    source === "sample"
+      ? "This preview is using sample availability until real stay dates are available."
+      : "Some calendar data could not be loaded. Availability may be incomplete.";
   const timedNotes = siteConfig.calendarDisplay.timedNotes;
   const calendarDays = timedNotes.enabled
     ? availability
@@ -180,13 +186,16 @@ export default async function SiteHomePage({
         <SiteTabs currentSiteId={siteConfig.site.id} sites={siteTabs} />
 
         {warnings.length > 0 ? (
-          <section className="rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            <p className="font-semibold">
-              {source === "ics"
-                ? "ICS imported with warnings"
-                : "Showing sample data"}
+          <section
+            aria-atomic="true"
+            aria-live="polite"
+            role="status"
+            className="flex flex-wrap items-center gap-2 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+          >
+            <p className="rounded-full bg-amber-100 px-3 py-1 font-semibold">
+              {warningTitle}
             </p>
-            <p className="mt-1">{warnings.join(" ")}</p>
+            <p>{warningMessage}</p>
           </section>
         ) : null}
 
