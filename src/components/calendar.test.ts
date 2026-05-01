@@ -4,6 +4,7 @@ import type { DailyAvailability } from "@/lib/house/types";
 import {
   buildDayAriaLabel,
   buildWeeks,
+  getAnchorPreviewPosition,
   getWholeHouseDetailLabel,
   resolveDayEventText,
 } from "./calendar";
@@ -221,5 +222,35 @@ describe("getWholeHouseDetailLabel", () => {
     });
 
     expect(label).toBe("Needs interpretation");
+  });
+});
+
+describe("getAnchorPreviewPosition", () => {
+  test("uses the measured preview height when flipping above a low cell", () => {
+    const position = getAnchorPreviewPosition(
+      {
+        bottom: 1030,
+        height: 180,
+        left: 420,
+        right: 560,
+        top: 850,
+        width: 140,
+      },
+      {
+        height: 220,
+        width: 288,
+      },
+      {
+        height: 1100,
+        width: 1120,
+      },
+    );
+
+    expect(position).toMatchObject({
+      anchorOffsetX: 144,
+      placement: "above",
+      x: 346,
+      y: 620,
+    });
   });
 });
