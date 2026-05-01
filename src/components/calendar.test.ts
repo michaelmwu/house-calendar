@@ -5,6 +5,7 @@ import {
   buildDayAriaLabel,
   buildWeeks,
   getAnchorPreviewPosition,
+  getPointerPreviewPosition,
   getWholeHouseDetailLabel,
   resolveDayEventText,
 } from "./calendar";
@@ -226,6 +227,34 @@ describe("getWholeHouseDetailLabel", () => {
 });
 
 describe("getAnchorPreviewPosition", () => {
+  test("keeps the preview below when its top coordinate fits below the anchor", () => {
+    const position = getAnchorPreviewPosition(
+      {
+        bottom: 520,
+        height: 60,
+        left: 420,
+        right: 560,
+        top: 460,
+        width: 140,
+      },
+      {
+        height: 220,
+        width: 288,
+      },
+      {
+        height: 800,
+        width: 1120,
+      },
+    );
+
+    expect(position).toMatchObject({
+      anchorOffsetX: 144,
+      placement: "below",
+      x: 346,
+      y: 530,
+    });
+  });
+
   test("uses the measured preview height when flipping above a low cell", () => {
     const position = getAnchorPreviewPosition(
       {
@@ -251,6 +280,52 @@ describe("getAnchorPreviewPosition", () => {
       placement: "above",
       x: 346,
       y: 620,
+    });
+  });
+});
+
+describe("getPointerPreviewPosition", () => {
+  test("offsets the preview from the pointer", () => {
+    const position = getPointerPreviewPosition(
+      {
+        x: 120,
+        y: 80,
+      },
+      {
+        height: 80,
+        width: 100,
+      },
+      {
+        height: 240,
+        width: 320,
+      },
+    );
+
+    expect(position).toMatchObject({
+      x: 138,
+      y: 98,
+    });
+  });
+
+  test("clamps the preview inside the viewport near the lower edge", () => {
+    const position = getPointerPreviewPosition(
+      {
+        x: 300,
+        y: 220,
+      },
+      {
+        height: 80,
+        width: 100,
+      },
+      {
+        height: 240,
+        width: 320,
+      },
+    );
+
+    expect(position).toMatchObject({
+      x: 204,
+      y: 144,
     });
   });
 });

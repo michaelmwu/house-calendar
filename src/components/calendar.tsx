@@ -434,6 +434,24 @@ function getFallbackPreviewSize(viewportSize: ViewportSize): PreviewSize {
   );
 }
 
+function clampPreviewPosition(
+  position: PreviewPosition,
+  previewSize: PreviewSize,
+  viewportSize: ViewportSize,
+): PreviewPosition {
+  const constrainedPreviewSize = constrainPreviewSize(previewSize, viewportSize);
+  const maxX =
+    viewportSize.width - constrainedPreviewSize.width - previewViewportPadding;
+  const maxY =
+    viewportSize.height - constrainedPreviewSize.height - previewViewportPadding;
+
+  return {
+    ...position,
+    x: clampToRange(position.x, previewViewportPadding, maxX),
+    y: clampToRange(position.y, previewViewportPadding, maxY),
+  };
+}
+
 function getAnchorRect(element: HTMLElement): AnchorRect {
   const rect = element.getBoundingClientRect();
 
@@ -486,7 +504,7 @@ export function getAnchorPreviewPosition(
     anchorRect.left + anchorRect.width / 2 - constrainedPreviewSize.width / 2;
   const belowY = anchorRect.bottom + previewAnchorGap;
   const aboveY = anchorRect.top - constrainedPreviewSize.height - previewAnchorGap;
-  const fitsBelow = belowY + constrainedPreviewSize.height <= maxY;
+  const fitsBelow = belowY <= maxY;
   const fitsAbove = aboveY >= previewViewportPadding;
   const spaceBelow =
     viewportSize.height - previewViewportPadding - anchorRect.bottom - previewAnchorGap;
@@ -693,18 +711,6 @@ export function Calendar({
       return;
     }
 
-    if (!hoverPreviewRequest && selectedPreviewPosition) {
-      setPreviewPosition((currentPosition) =>
-        currentPosition?.x === selectedPreviewPosition.x &&
-        currentPosition?.y === selectedPreviewPosition.y &&
-        currentPosition?.placement === selectedPreviewPosition.placement &&
-        currentPosition?.anchorOffsetX === selectedPreviewPosition.anchorOffsetX
-          ? currentPosition
-          : selectedPreviewPosition,
-      );
-      return;
-    }
-
     const measuredRect = previewPanelRef.current?.getBoundingClientRect();
     const measuredPreviewSize = measuredRect
       ? {
@@ -714,6 +720,41 @@ export function Calendar({
       : null;
     const nextPreviewSize =
       measuredPreviewSize ?? previewSize ?? getFallbackPreviewSize(viewportSize);
+
+    if (
+      measuredPreviewSize &&
+      (!previewSize ||
+        measuredPreviewSize.height !== previewSize.height ||
+        measuredPreviewSize.width !== previewSize.width)
+    ) {
+      setPreviewSize(measuredPreviewSize);
+    }
+
+    if (!hoverPreviewRequest && selectedPreviewPosition) {
+      const nextPreviewPosition = clampPreviewPosition(
+        selectedPreviewPosition,
+        nextPreviewSize,
+        viewportSize,
+      );
+
+      if (
+        nextPreviewPosition.x !== selectedPreviewPosition.x ||
+        nextPreviewPosition.y !== selectedPreviewPosition.y
+      ) {
+        setSelectedPreviewPosition(nextPreviewPosition);
+      }
+
+      setPreviewPosition((currentPosition) =>
+        currentPosition?.x === nextPreviewPosition.x &&
+        currentPosition?.y === nextPreviewPosition.y &&
+        currentPosition?.placement === nextPreviewPosition.placement &&
+        currentPosition?.anchorOffsetX === nextPreviewPosition.anchorOffsetX
+          ? currentPosition
+          : nextPreviewPosition,
+      );
+      return;
+    }
+
     const nextPreviewPosition =
       activePreviewRequest.type === "anchor"
         ? getAnchorPreviewPosition(
@@ -726,15 +767,6 @@ export function Calendar({
             nextPreviewSize,
             viewportSize,
           );
-
-    if (
-      measuredPreviewSize &&
-      (!previewSize ||
-        measuredPreviewSize.height !== previewSize.height ||
-        measuredPreviewSize.width !== previewSize.width)
-    ) {
-      setPreviewSize(measuredPreviewSize);
-    }
 
     setPreviewPosition((currentPosition) =>
       currentPosition?.x === nextPreviewPosition.x &&
