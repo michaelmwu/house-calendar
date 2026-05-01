@@ -2,7 +2,7 @@
 
 import { addDays, format, getDay, isAfter, parseISO } from "date-fns";
 import type { FocusEvent, MouseEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { currentDateInTimeZone, formatTimeInTimeZone } from "@/lib/house/date";
 import type { DailyAvailability } from "@/lib/house/types";
 
@@ -66,6 +66,41 @@ type PreviewPosition = {
   x: number;
   y: number;
 };
+
+type PreviewSize = {
+  height: number;
+  width: number;
+};
+
+type ViewportSize = {
+  height: number;
+  width: number;
+};
+
+type AnchorRect = {
+  bottom: number;
+  height: number;
+  left: number;
+  right: number;
+  top: number;
+  width: number;
+};
+
+type PreviewRequest =
+  | {
+      anchorRect: AnchorRect;
+      date: string;
+      type: "anchor";
+    }
+  | {
+      date: string;
+      pointer: { x: number; y: number };
+      type: "pointer";
+    };
+
+const previewViewportPadding = 16;
+const previewPointerGap = 18;
+const previewAnchorGap = 10;
 
 function isPastDate(date: string, today: string): boolean {
   return date < today;
@@ -351,109 +386,146 @@ function formatPanelDate(date: string): string {
   return format(parseISO(date), "MMM d");
 }
 
-function getPointerPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
-  if (typeof window === "undefined") {
-    return { x: x + 18, y: y + 18 };
+function clampToRange(value: number, min: number, max: number): number {
+  if (max < min) {
+    return min;
   }
 
-  const viewportPadding = 16;
-  const previewWidth = Math.max(
-    0,
-    Math.min(288, window.innerWidth - viewportPadding * 2),
-  );
-  const previewHeight = Math.max(
-    0,
-    Math.min(448, window.innerHeight - viewportPadding * 2),
-  );
+  return Math.max(min, Math.min(value, max));
+}
+
+function getViewportSize(): ViewportSize {
+  if (typeof window === "undefined") {
+    return { height: 0, width: 0 };
+  }
 
   return {
-    x: Math.max(
-      viewportPadding,
-      Math.min(x + 18, window.innerWidth - previewWidth - viewportPadding),
+    height: window.innerHeight,
+    width: window.innerWidth,
+  };
+}
+
+function constrainPreviewSize(
+  previewSize: PreviewSize,
+  viewportSize: ViewportSize,
+): PreviewSize {
+  return {
+    height: Math.max(
+      0,
+      Math.min(
+        previewSize.height,
+        viewportSize.height - previewViewportPadding * 2,
+      ),
     ),
-    y: Math.max(
-      viewportPadding,
-      Math.min(y + 18, window.innerHeight - previewHeight - viewportPadding),
+    width: Math.max(
+      0,
+      Math.min(previewSize.width, viewportSize.width - previewViewportPadding * 2),
     ),
   };
 }
 
-function getAnchorPreviewPosition(anchor: HTMLElement): PreviewPosition {
-  if (typeof window === "undefined") {
-    return { x: 16, y: 16 };
-  }
+function getFallbackPreviewSize(viewportSize: ViewportSize): PreviewSize {
+  return constrainPreviewSize(
+    {
+      height: 448,
+      width: 288,
+    },
+    viewportSize,
+  );
+}
 
-  const viewportPadding = 16;
-  const previewWidth = Math.max(
-    0,
-    Math.min(288, window.innerWidth - viewportPadding * 2),
-  );
-  const previewHeight = Math.max(
-    0,
-    Math.min(448, window.innerHeight - viewportPadding * 2),
-  );
-  const rect = anchor.getBoundingClientRect();
-  const centeredX = rect.left + rect.width / 2 - previewWidth / 2;
-  const belowY = rect.bottom + 10;
-  const aboveY = rect.top - previewHeight - 10;
-  const hasRoomBelow =
-    belowY + previewHeight <= window.innerHeight - viewportPadding;
+function clampPreviewPosition(
+  position: PreviewPosition,
+  previewSize: PreviewSize,
+  viewportSize: ViewportSize,
+): PreviewPosition {
+  const constrainedPreviewSize = constrainPreviewSize(previewSize, viewportSize);
+  const maxX =
+    viewportSize.width - constrainedPreviewSize.width - previewViewportPadding;
+  const maxY =
+    viewportSize.height - constrainedPreviewSize.height - previewViewportPadding;
 
   return {
-    x: Math.max(
-      viewportPadding,
-      Math.min(centeredX, window.innerWidth - previewWidth - viewportPadding),
+    ...position,
+    x: clampToRange(position.x, previewViewportPadding, maxX),
+    y: clampToRange(position.y, previewViewportPadding, maxY),
+  };
+}
+
+function getAnchorRect(element: HTMLElement): AnchorRect {
+  const rect = element.getBoundingClientRect();
+
+  return {
+    bottom: rect.bottom,
+    height: rect.height,
+    left: rect.left,
+    right: rect.right,
+    top: rect.top,
+    width: rect.width,
+  };
+}
+
+export function getPointerPreviewPosition(
+  pointer: { x: number; y: number },
+  previewSize: PreviewSize,
+  viewportSize: ViewportSize,
+): PreviewPosition {
+  const constrainedPreviewSize = constrainPreviewSize(previewSize, viewportSize);
+  const maxX =
+    viewportSize.width - constrainedPreviewSize.width - previewViewportPadding;
+  const maxY =
+    viewportSize.height - constrainedPreviewSize.height - previewViewportPadding;
+
+  return {
+    x: clampToRange(
+      pointer.x + previewPointerGap,
+      previewViewportPadding,
+      maxX,
     ),
-    y: Math.max(
-      viewportPadding,
-      hasRoomBelow
-        ? belowY
-        : Math.min(
-            aboveY,
-            window.innerHeight - previewHeight - viewportPadding,
-          ),
+    y: clampToRange(
+      pointer.y + previewPointerGap,
+      previewViewportPadding,
+      maxY,
     ),
   };
 }
 
-function getClickPreviewPosition({ x, y }: PreviewPosition): PreviewPosition {
-  if (typeof window === "undefined") {
-    return { x: x + 14, y: y + 14 };
-  }
-
-  const viewportPadding = 16;
-  const isDesktopLayout = window.matchMedia("(min-width: 1024px)").matches;
-  const previewWidth = Math.max(
-    0,
-    Math.min(288, window.innerWidth - viewportPadding * 2),
-  );
-  const previewHeight = Math.max(
-    0,
-    Math.min(
-      isDesktopLayout ? 448 : 256,
-      window.innerHeight - viewportPadding * 2,
-    ),
-  );
-  const centeredX = x - previewWidth / 2;
-  const belowY = y + 14;
-  const aboveY = y - previewHeight - 14;
-  const hasRoomBelow =
-    belowY + previewHeight <= window.innerHeight - viewportPadding;
-
-  const nextX = Math.max(
-    viewportPadding,
-    Math.min(centeredX, window.innerWidth - previewWidth - viewportPadding),
-  );
-  const nextY = Math.max(
-    viewportPadding,
-    hasRoomBelow
-      ? belowY
-      : Math.min(aboveY, window.innerHeight - previewHeight - viewportPadding),
+export function getAnchorPreviewPosition(
+  anchorRect: AnchorRect,
+  previewSize: PreviewSize,
+  viewportSize: ViewportSize,
+): PreviewPosition {
+  const constrainedPreviewSize = constrainPreviewSize(previewSize, viewportSize);
+  const maxX =
+    viewportSize.width - constrainedPreviewSize.width - previewViewportPadding;
+  const maxY =
+    viewportSize.height - constrainedPreviewSize.height - previewViewportPadding;
+  const centeredX =
+    anchorRect.left + anchorRect.width / 2 - constrainedPreviewSize.width / 2;
+  const belowY = anchorRect.bottom + previewAnchorGap;
+  const aboveY = anchorRect.top - constrainedPreviewSize.height - previewAnchorGap;
+  const fitsBelow = belowY <= maxY;
+  const fitsAbove = aboveY >= previewViewportPadding;
+  const spaceBelow =
+    viewportSize.height - previewViewportPadding - anchorRect.bottom - previewAnchorGap;
+  const spaceAbove =
+    anchorRect.top - previewViewportPadding - previewAnchorGap;
+  const shouldPlaceBelow =
+    fitsBelow || (!fitsAbove && spaceBelow >= spaceAbove);
+  const nextX = clampToRange(centeredX, previewViewportPadding, maxX);
+  const nextY = clampToRange(
+    shouldPlaceBelow ? belowY : aboveY,
+    previewViewportPadding,
+    maxY,
   );
 
   return {
-    anchorOffsetX: Math.max(24, Math.min(x - nextX, previewWidth - 24)),
-    placement: hasRoomBelow ? "below" : "above",
+    anchorOffsetX: clampToRange(
+      anchorRect.left + anchorRect.width / 2 - nextX,
+      24,
+      constrainedPreviewSize.width - 24,
+    ),
+    placement: shouldPlaceBelow ? "below" : "above",
     x: nextX,
     y: nextY,
   };
@@ -481,18 +553,25 @@ export function Calendar({
   const today = currentDateInTimeZone(timezone);
   const defaultSelectedDate = getDefaultSelectedDate(days, today);
   const [selectedDate, setSelectedDate] = useState(defaultSelectedDate);
-  const [previewDate, setPreviewDate] = useState<string | null>(null);
+  const [selectedPreviewRequest, setSelectedPreviewRequest] =
+    useState<PreviewRequest | null>(null);
+  const [selectedPreviewPosition, setSelectedPreviewPosition] =
+    useState<PreviewPosition | null>(null);
+  const [hoverPreviewRequest, setHoverPreviewRequest] =
+    useState<PreviewRequest | null>(null);
   const [previewPosition, setPreviewPosition] =
     useState<PreviewPosition | null>(null);
+  const [previewSize, setPreviewSize] = useState<PreviewSize | null>(null);
   const [canHoverPreview, setCanHoverPreview] = useState(false);
+  const [viewportSize, setViewportSize] = useState<ViewportSize>(() =>
+    getViewportSize(),
+  );
+  const previewPanelRef = useRef<HTMLDivElement | null>(null);
+  const activePreviewRequest = hoverPreviewRequest ?? selectedPreviewRequest;
 
-  const clearPreview = () => {
-    setPreviewDate(null);
-    setPreviewPosition(null);
-  };
   const clearHoverPreview = () => {
     if (canHoverPreview) {
-      clearPreview();
+      setHoverPreviewRequest(null);
     }
   };
   const updatePreviewFromFocus = (
@@ -503,19 +582,74 @@ export function Calendar({
       return;
     }
 
-    setPreviewDate(dayDate);
-    setPreviewPosition(getAnchorPreviewPosition(event.currentTarget));
+    const viewportSize = getViewportSize();
+    const anchorRect = getAnchorRect(event.currentTarget);
+
+    setHoverPreviewRequest({
+      anchorRect,
+      date: dayDate,
+      type: "anchor",
+    });
+    setPreviewPosition(
+      getAnchorPreviewPosition(
+        anchorRect,
+        previewSize ?? getFallbackPreviewSize(viewportSize),
+        viewportSize,
+      ),
+    );
   };
   const updatePreviewFromClick = (
     dayDate: string,
     event: MouseEvent<HTMLButtonElement>,
   ) => {
-    setPreviewDate(dayDate);
+    if (canHoverPreview) {
+      if (hoverPreviewRequest?.date === dayDate && previewPosition) {
+        setSelectedPreviewRequest(hoverPreviewRequest);
+        setSelectedPreviewPosition(previewPosition);
+        setHoverPreviewRequest(null);
+        return;
+      }
+
+      const viewportSize = getViewportSize();
+      const pointerPreviewRequest: PreviewRequest = {
+        date: dayDate,
+        pointer: {
+          x: event.clientX,
+          y: event.clientY,
+        },
+        type: "pointer",
+      };
+
+      setSelectedPreviewRequest(pointerPreviewRequest);
+      setSelectedPreviewPosition(null);
+      setHoverPreviewRequest(null);
+
+      setPreviewPosition(
+        getPointerPreviewPosition(
+          pointerPreviewRequest.pointer,
+          previewSize ?? getFallbackPreviewSize(viewportSize),
+          viewportSize,
+        ),
+      );
+      return;
+    }
+
+    const viewportSize = getViewportSize();
+    const anchorRect = getAnchorRect(event.currentTarget);
+
+    setHoverPreviewRequest(null);
+    setSelectedPreviewPosition(null);
+    setSelectedPreviewRequest({
+      anchorRect,
+      date: dayDate,
+      type: "anchor",
+    });
     setPreviewPosition(
-      getClickPreviewPosition({
-        x: event.clientX,
-        y: event.clientY,
-      }),
+      getAnchorPreviewPosition(
+        anchorRect,
+        previewSize ?? getFallbackPreviewSize(viewportSize),
+        viewportSize,
+      ),
     );
   };
   const updatePreviewFromMouse = (
@@ -526,20 +660,26 @@ export function Calendar({
       return;
     }
 
-    setPreviewDate(dayDate);
+    const viewportSize = getViewportSize();
+
+    setHoverPreviewRequest({
+      date: dayDate,
+      pointer: {
+        x: event.clientX,
+        y: event.clientY,
+      },
+      type: "pointer",
+    });
     setPreviewPosition(
       getPointerPreviewPosition({
         x: event.clientX,
         y: event.clientY,
-      }),
+      }, previewSize ?? getFallbackPreviewSize(viewportSize), viewportSize),
     );
   };
   const selectDay = (dayDate: string, event: MouseEvent<HTMLButtonElement>) => {
     setSelectedDate(dayDate);
-
-    if (!canHoverPreview) {
-      updatePreviewFromClick(dayDate, event);
-    }
+    updatePreviewFromClick(dayDate, event);
   };
 
   useEffect(() => {
@@ -553,6 +693,96 @@ export function Calendar({
     return () =>
       query.removeEventListener("change", updateHoverPreviewCapability);
   }, []);
+
+  useEffect(() => {
+    const handleViewportResize = () => {
+      setViewportSize(getViewportSize());
+    };
+
+    window.addEventListener("resize", handleViewportResize);
+
+    return () => window.removeEventListener("resize", handleViewportResize);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!activePreviewRequest) {
+      setPreviewSize(null);
+      setPreviewPosition(null);
+      return;
+    }
+
+    const measuredRect = previewPanelRef.current?.getBoundingClientRect();
+    const measuredPreviewSize = measuredRect
+      ? {
+          height: measuredRect.height,
+          width: measuredRect.width,
+        }
+      : null;
+    const nextPreviewSize =
+      measuredPreviewSize ?? previewSize ?? getFallbackPreviewSize(viewportSize);
+
+    if (
+      measuredPreviewSize &&
+      (!previewSize ||
+        measuredPreviewSize.height !== previewSize.height ||
+        measuredPreviewSize.width !== previewSize.width)
+    ) {
+      setPreviewSize(measuredPreviewSize);
+    }
+
+    if (!hoverPreviewRequest && selectedPreviewPosition) {
+      const nextPreviewPosition = clampPreviewPosition(
+        selectedPreviewPosition,
+        nextPreviewSize,
+        viewportSize,
+      );
+
+      if (
+        nextPreviewPosition.x !== selectedPreviewPosition.x ||
+        nextPreviewPosition.y !== selectedPreviewPosition.y
+      ) {
+        setSelectedPreviewPosition(nextPreviewPosition);
+      }
+
+      setPreviewPosition((currentPosition) =>
+        currentPosition?.x === nextPreviewPosition.x &&
+        currentPosition?.y === nextPreviewPosition.y &&
+        currentPosition?.placement === nextPreviewPosition.placement &&
+        currentPosition?.anchorOffsetX === nextPreviewPosition.anchorOffsetX
+          ? currentPosition
+          : nextPreviewPosition,
+      );
+      return;
+    }
+
+    const nextPreviewPosition =
+      activePreviewRequest.type === "anchor"
+        ? getAnchorPreviewPosition(
+            activePreviewRequest.anchorRect,
+            nextPreviewSize,
+            viewportSize,
+          )
+        : getPointerPreviewPosition(
+            activePreviewRequest.pointer,
+            nextPreviewSize,
+            viewportSize,
+          );
+
+    setPreviewPosition((currentPosition) =>
+      currentPosition?.x === nextPreviewPosition.x &&
+      currentPosition?.y === nextPreviewPosition.y &&
+      currentPosition?.placement === nextPreviewPosition.placement &&
+      currentPosition?.anchorOffsetX === nextPreviewPosition.anchorOffsetX
+        ? currentPosition
+        : nextPreviewPosition,
+    );
+  }, [
+    activePreviewRequest,
+    hoverPreviewRequest,
+    previewSize,
+    selectedPreviewPosition,
+    viewportSize,
+  ]);
 
   useEffect(() => {
     setSelectedDate((currentSelectedDate) =>
@@ -599,8 +829,8 @@ export function Calendar({
 
   const weeks = buildWeeks(days);
   const selectedDay = days.find((day) => day.date === selectedDate) ?? days[0];
-  const previewDay = previewDate
-    ? (days.find((day) => day.date === previewDate) ?? null)
+  const previewDay = activePreviewRequest
+    ? (days.find((day) => day.date === activePreviewRequest.date) ?? null)
     : null;
   const hasSingleRoom = days[0]?.rooms.length === 1;
   const legendItems: ReadonlyArray<readonly [StatusKey, string]> = hasSingleRoom
@@ -794,6 +1024,7 @@ export function Calendar({
 
       {previewDay && previewPosition ? (
         <div
+          ref={previewPanelRef}
           className="pointer-events-none fixed z-50 w-[min(18rem,calc(100vw-2rem))] max-h-64 overflow-y-auto rounded-[1.25rem] border border-[color:var(--app-card-border)] bg-[color:var(--app-card)] p-3 text-[var(--app-foreground)] shadow-[0_20px_60px_rgba(29,22,12,0.18)] backdrop-blur lg:max-h-[min(28rem,calc(100vh-2rem))] lg:p-4"
           style={{
             left: previewPosition.x,
