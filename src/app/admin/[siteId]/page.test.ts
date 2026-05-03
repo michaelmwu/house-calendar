@@ -1,14 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import type {
   HouseConfig,
   ParsedCalendarEvent,
   RawCalendarEvent,
 } from "@/lib/house/types";
-import {
-  buildParsedFieldRows,
-  describeInterpretation,
-  formatEventRange,
-} from "./page";
+
+mock.module("server-only", () => ({}));
+
+const { buildParsedFieldRows, describeInterpretation, formatEventRange } =
+  await import("./page");
 
 const houseConfig: HouseConfig = {
   id: "tokyo",
@@ -62,6 +62,19 @@ const parsedStayEvent: ParsedCalendarEvent = {
   visibility: "private",
 };
 
+const parsedTentativePresenceEvent: ParsedCalendarEvent = {
+  confidence: 0.98,
+  location: "taipei",
+  normalizedTitle: "michael maybe in taipei",
+  personId: "michael",
+  presenceState: "in",
+  presenceStatus: "tentative",
+  rawTitle: "Michael maybe in Taipei",
+  scope: "location",
+  type: "presence",
+  visibility: "public",
+};
+
 describe("admin timed event diagnostics", () => {
   test("formats timed event ranges in the house timezone", () => {
     expect(formatEventRange(buildTimedRawEvent(), houseConfig.timezone)).toBe(
@@ -111,6 +124,53 @@ describe("admin timed event diagnostics", () => {
       {
         label: "Visibility",
         value: "private",
+      },
+    ]);
+  });
+
+  test("describes tentative presence interpretations explicitly", () => {
+    expect(
+      describeInterpretation(parsedTentativePresenceEvent, houseConfig, {
+        allDay: true,
+        endDate: "2026-04-30",
+        id: "presence-1",
+        startDate: "2026-04-29",
+        title: "Michael maybe in Taipei",
+        visibility: "public",
+      }),
+    ).toBe("Michael: Tentative in (taipei)");
+  });
+
+  test("shows presence status rows for tentative presence", () => {
+    expect(
+      buildParsedFieldRows(parsedTentativePresenceEvent, houseConfig, {
+        allDay: true,
+        endDate: "2026-04-30",
+        id: "presence-1",
+        startDate: "2026-04-29",
+        title: "Michael maybe in Taipei",
+        visibility: "public",
+      }),
+    ).toEqual([
+      {
+        label: "Known housemate",
+        value: "Michael",
+      },
+      {
+        label: "Presence state",
+        value: "in",
+      },
+      {
+        label: "Presence status",
+        value: "Tentative",
+      },
+      {
+        label: "Occupies default room",
+        value: "Yes",
+      },
+      {
+        label: "Location",
+        value: "taipei",
       },
     ]);
   });

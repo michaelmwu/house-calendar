@@ -145,6 +145,35 @@ describe("parseEventTitle", () => {
 
     expect(parsed.type).toBe("presence");
     expect(parsed.presenceState).toBe("in");
+    expect(parsed.presenceStatus).toBe("confirmed");
+    expect(parsed.location).toBe("tokyo");
+    expect(parsed.personId).toBe("michael");
+    expect(parsed.visibility).toBe("public");
+  });
+
+  test("treats maybe presence titles as tentative", () => {
+    const parsed = parseEventTitle(
+      "Michael maybe in Tokyo",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("presence");
+    expect(parsed.presenceState).toBe("in");
+    expect(parsed.presenceStatus).toBe("tentative");
+    expect(parsed.location).toBe("tokyo");
+    expect(parsed.personId).toBe("michael");
+    expect(parsed.visibility).toBe("public");
+  });
+
+  test("treats bracket tentative presence markers as tentative", () => {
+    const parsed = parseEventTitle(
+      "Michael [Tokyo, tentative]",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("presence");
+    expect(parsed.presenceState).toBe("in");
+    expect(parsed.presenceStatus).toBe("tentative");
     expect(parsed.location).toBe("tokyo");
     expect(parsed.personId).toBe("michael");
     expect(parsed.visibility).toBe("public");
@@ -158,6 +187,7 @@ describe("parseEventTitle", () => {
 
     expect(parsed.type).toBe("presence");
     expect(parsed.presenceState).toBe("in");
+    expect(parsed.presenceStatus).toBe("confirmed");
     expect(parsed.location).toBe("tokyo");
     expect(parsed.occupiesDefaultRoom).toBe(false);
     expect(parsed.personId).toBe("michael");
@@ -181,6 +211,7 @@ describe("parseEventTitle", () => {
     expect(parsed.type).toBe("presence");
     expect(parsed.presenceState).toBe("in");
     expect(parsed.personId).toBe("michael");
+    expect(parsed.presenceStatus).toBe("confirmed");
     expect(parsed.occupiesDefaultRoom).toBe(false);
     expect(parsed.visibility).toBe("private");
   });
@@ -193,6 +224,7 @@ describe("parseEventTitle", () => {
 
     expect(parsed.type).toBe("presence");
     expect(parsed.presenceState).toBe("in");
+    expect(parsed.presenceStatus).toBe("confirmed");
     expect(parsed.location).toBe("tokyo");
     expect(parsed.occupiesDefaultRoom).toBe(false);
     expect(parsed.personId).toBe("michael");
