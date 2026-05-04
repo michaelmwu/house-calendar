@@ -69,8 +69,12 @@ function inferPresenceStatus(
 }
 
 function stripTentativeMarkers(title: string): string {
+  if (OUT_RE.test(title)) {
+    return title.trim().replace(/\s+/g, " ");
+  }
+
   return title
-    .replace(/\bmaybe\s+(stay|stays|in|out)\b/gi, "$1")
+    .replace(/\bmaybe\s+(stay|stays|in)\b/gi, "$1")
     .replace(/\(([^)]+)\)/g, (_match, content: string) => {
       const filtered = content
         .split(",")
@@ -215,7 +219,7 @@ function matchTemplatedPresenceRule(
         new RegExp(`^${escapedCandidate} out of japan(?: \\((.+)\\))?$`, "i"),
       );
 
-      if (outMatch) {
+      if (outMatch && inferPresenceStatus(normalizedTitle) === "confirmed") {
         return {
           normalizedTitle,
           type: "presence",
@@ -232,7 +236,10 @@ function matchTemplatedPresenceRule(
         new RegExp(`^${escapedCandidate} out \\((.+)\\)$`, "i"),
       );
 
-      if (bracketOutMatch) {
+      if (
+        bracketOutMatch &&
+        inferPresenceStatus(normalizedTitle) === "confirmed"
+      ) {
         return {
           normalizedTitle,
           type: "presence",
@@ -355,6 +362,10 @@ function matchExplicitRule(
         };
       }
       case "presence.out":
+        if (inferPresenceStatus(normalizedTitle) === "tentative") {
+          continue;
+        }
+
         return {
           normalizedTitle,
           type: "presence",
@@ -443,7 +454,10 @@ function fallbackPresenceParse(
 
   const bracketHint = extractBracketHint(normalizedTitle);
 
-  if (OUT_RE.test(normalizedTitle)) {
+  if (
+    OUT_RE.test(normalizedTitle) &&
+    inferPresenceStatus(normalizedTitle) === "confirmed"
+  ) {
     const locationMatch = normalizedTitle.match(/\bout of ([^)]+)$/i);
 
     return {
@@ -462,6 +476,7 @@ function fallbackPresenceParse(
   if (
     bracketHint &&
     !STAY_RE.test(normalizedTitle) &&
+    !OUT_RE.test(normalizedTitle) &&
     !isNotStayingHint(bracketHint)
   ) {
     const { location, occupiesDefaultRoom, presenceStatus } =

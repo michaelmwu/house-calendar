@@ -95,6 +95,26 @@ describe("parseEventTitle", () => {
     expect(parsed.visibility).toBe("public");
   });
 
+  test("does not promote maybe out travel into a confirmed departure", () => {
+    const parsed = parseEventTitle(
+      "Michael maybe out of Japan",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("unknown");
+    expect(parsed.personId).toBe("michael");
+  });
+
+  test("does not let stripped tentative departure markers match explicit out rules", () => {
+    const parsed = parseEventTitle(
+      "Michael out of Japan (tentative)",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("unknown");
+    expect(parsed.personId).toBe("michael");
+  });
+
   test("supports bracket shorthand for templated departure presence", () => {
     const parsed = parseEventTitle("Michael out [Japan]", exampleHouseConfig);
 
