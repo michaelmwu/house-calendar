@@ -897,9 +897,7 @@ export function Calendar({
                 requestEnabled ? "bg-emerald-500" : "bg-stone-400"
               }`}
             />
-            {requestEnabled
-              ? "Stay requests enabled"
-              : "Stay requests disabled"}
+            {requestEnabled ? "Stay requests enabled" : "View only"}
           </div>
         </div>
 
