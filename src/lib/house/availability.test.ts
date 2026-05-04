@@ -341,6 +341,34 @@ describe("deriveDailyAvailability", () => {
     ).toBe("free");
   });
 
+  test("tentative presence.in keeps the default room tentative", () => {
+    const days = deriveDailyAvailability(
+      exampleHouseConfig,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-michael-maybe-in",
+          title: "Michael maybe in Tokyo",
+          startDate: "2026-04-19",
+          endDate: "2026-04-21",
+          allDay: true,
+        }),
+      ],
+      "2026-04-19",
+      2,
+    );
+
+    expect(days[0]?.status).toBe("tentative");
+    expect(days[0]?.rooms.find((room) => room.id === "my-room")?.status).toBe(
+      "tentative",
+    );
+    expect(
+      days[0]?.presence.find((person) => person.personId === "michael"),
+    ).toMatchObject({
+      label: "tentative",
+      state: "in",
+    });
+  });
+
   test("presence.in with not staying keeps the default room free", () => {
     const days = deriveDailyAvailability(
       exampleHouseConfig,
@@ -484,5 +512,31 @@ describe("deriveDailyAvailability", () => {
       label: "leaving",
       state: "unknown",
     });
+  });
+
+  test("tentative public presence.in does not infer a checkout-day leaving label", () => {
+    const days = deriveDailyAvailability(
+      exampleHouseConfig,
+      [
+        rawCalendarEventSchema.parse({
+          id: "evt-michael-maybe-in",
+          title: "Michael maybe in Tokyo",
+          startDate: "2026-05-06",
+          endDate: "2026-05-09",
+          allDay: true,
+        }),
+      ],
+      "2026-05-08",
+      2,
+    );
+
+    expect(
+      days[1]?.presence.find((person) => person.personId === "michael"),
+    ).toMatchObject({
+      state: "unknown",
+    });
+    expect(
+      days[1]?.presence.find((person) => person.personId === "michael")?.label,
+    ).toBeUndefined();
   });
 });

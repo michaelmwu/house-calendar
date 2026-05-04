@@ -95,6 +95,26 @@ describe("parseEventTitle", () => {
     expect(parsed.visibility).toBe("public");
   });
 
+  test("does not promote maybe out travel into a confirmed departure", () => {
+    const parsed = parseEventTitle(
+      "Michael maybe out of Japan",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("unknown");
+    expect(parsed.personId).toBe("michael");
+  });
+
+  test("does not let stripped tentative departure markers match explicit out rules", () => {
+    const parsed = parseEventTitle(
+      "Michael out of Japan (tentative)",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("unknown");
+    expect(parsed.personId).toBe("michael");
+  });
+
   test("supports bracket shorthand for templated departure presence", () => {
     const parsed = parseEventTitle("Michael out [Japan]", exampleHouseConfig);
 
@@ -145,6 +165,35 @@ describe("parseEventTitle", () => {
 
     expect(parsed.type).toBe("presence");
     expect(parsed.presenceState).toBe("in");
+    expect(parsed.presenceStatus).toBe("confirmed");
+    expect(parsed.location).toBe("tokyo");
+    expect(parsed.personId).toBe("michael");
+    expect(parsed.visibility).toBe("public");
+  });
+
+  test("treats maybe presence titles as tentative", () => {
+    const parsed = parseEventTitle(
+      "Michael maybe in Tokyo",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("presence");
+    expect(parsed.presenceState).toBe("in");
+    expect(parsed.presenceStatus).toBe("tentative");
+    expect(parsed.location).toBe("tokyo");
+    expect(parsed.personId).toBe("michael");
+    expect(parsed.visibility).toBe("public");
+  });
+
+  test("treats bracket tentative presence markers as tentative", () => {
+    const parsed = parseEventTitle(
+      "Michael [Tokyo, tentative]",
+      exampleHouseConfig,
+    );
+
+    expect(parsed.type).toBe("presence");
+    expect(parsed.presenceState).toBe("in");
+    expect(parsed.presenceStatus).toBe("tentative");
     expect(parsed.location).toBe("tokyo");
     expect(parsed.personId).toBe("michael");
     expect(parsed.visibility).toBe("public");
@@ -158,6 +207,7 @@ describe("parseEventTitle", () => {
 
     expect(parsed.type).toBe("presence");
     expect(parsed.presenceState).toBe("in");
+    expect(parsed.presenceStatus).toBe("confirmed");
     expect(parsed.location).toBe("tokyo");
     expect(parsed.occupiesDefaultRoom).toBe(false);
     expect(parsed.personId).toBe("michael");
@@ -181,6 +231,7 @@ describe("parseEventTitle", () => {
     expect(parsed.type).toBe("presence");
     expect(parsed.presenceState).toBe("in");
     expect(parsed.personId).toBe("michael");
+    expect(parsed.presenceStatus).toBe("confirmed");
     expect(parsed.occupiesDefaultRoom).toBe(false);
     expect(parsed.visibility).toBe("private");
   });
@@ -193,6 +244,7 @@ describe("parseEventTitle", () => {
 
     expect(parsed.type).toBe("presence");
     expect(parsed.presenceState).toBe("in");
+    expect(parsed.presenceStatus).toBe("confirmed");
     expect(parsed.location).toBe("tokyo");
     expect(parsed.occupiesDefaultRoom).toBe(false);
     expect(parsed.personId).toBe("michael");

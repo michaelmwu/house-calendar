@@ -120,7 +120,9 @@ export function describeInterpretation(
   const personLabel = person?.name ?? parsed.personId ?? "Unknown person";
   const stateLabel =
     parsed.presenceState === "in"
-      ? "In"
+      ? parsed.presenceStatus === "tentative"
+        ? "Tentative in"
+        : "In"
       : parsed.presenceState === "out"
         ? "Out"
         : "Unknown";
@@ -212,6 +214,14 @@ export function buildParsedFieldRows(
 
     if (parsed.presenceState) {
       rows.push({ label: "Presence state", value: parsed.presenceState });
+    }
+
+    if (parsed.presenceState === "in") {
+      rows.push({
+        label: "Presence status",
+        value:
+          parsed.presenceStatus === "tentative" ? "Tentative" : "Confirmed",
+      });
     }
 
     if (parsed.presenceState === "in") {

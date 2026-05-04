@@ -12,7 +12,7 @@ import {
 
 type WorkingDay = Omit<DailyAvailability, "status"> & {
   hasUnknownStay: boolean;
-  presenceOccupiesDefaultRoomByPerson: Map<string, boolean>;
+  presenceRoomStatusByPerson: Map<string, "free" | "tentative" | "occupied">;
   presenceStatesByPerson: Map<string, "in" | "out" | "unknown">;
   rooms: DailyAvailability["rooms"];
   presence: DailyAvailability["presence"];
@@ -63,12 +63,17 @@ function enumerateDays(startDate: string, endDateExclusive: string): string[] {
 
 function getPublicPresenceLabel(
   presenceState: "in" | "out" | "unknown",
+  presenceStatus: "confirmed" | "tentative",
   occupiesDefaultRoom: boolean,
   eventStartDate: string,
   eventDay: string,
 ): string | undefined {
   if (presenceState === "out" && eventDay === asCalendarDate(eventStartDate)) {
     return "leaving";
+  }
+
+  if (presenceState === "in" && presenceStatus === "tentative") {
+    return "tentative";
   }
 
   if (presenceState === "in" && !occupiesDefaultRoom) {
@@ -130,7 +135,7 @@ export function deriveDailyAvailability(
           name: person.name,
           state: "unknown" as const,
         })),
-      presenceOccupiesDefaultRoomByPerson: new Map(),
+      presenceRoomStatusByPerson: new Map(),
       presenceStatesByPerson: new Map(),
     }),
   );
@@ -175,7 +180,8 @@ export function deriveDailyAvailability(
       parsed.type === "presence" &&
       parsed.personId &&
       parsed.presenceState === "in" &&
-      parsed.visibility === "public"
+      parsed.visibility === "public" &&
+      parsed.presenceStatus !== "tentative"
     ) {
       inferredDepartureLabels.push({
         checkoutDate: asCalendarDate(event.endDate),
@@ -222,11 +228,24 @@ export function deriveDailyAvailability(
         parsed.personId &&
         parsed.presenceState
       ) {
+        const occupiesDefaultRoom =
+          parsed.presenceState === "in" && parsed.occupiesDefaultRoom !== false;
+
         day.presenceStatesByPerson.set(parsed.personId, parsed.presenceState);
-        day.presenceOccupiesDefaultRoomByPerson.set(
-          parsed.personId,
-          parsed.presenceState === "in" && parsed.occupiesDefaultRoom !== false,
-        );
+        if (parsed.presenceState !== "in" || !occupiesDefaultRoom) {
+          day.presenceRoomStatusByPerson.set(parsed.personId, "free");
+        } else {
+          const roomStatusForPresence: "tentative" | "occupied" =
+            parsed.presenceStatus === "tentative" ? "tentative" : "occupied";
+
+          day.presenceRoomStatusByPerson.set(
+            parsed.personId,
+            mergeRoomStatus(
+              day.presenceRoomStatusByPerson.get(parsed.personId) ?? "free",
+              roomStatusForPresence,
+            ),
+          );
+        }
       }
 
       if (
@@ -235,9 +254,12 @@ export function deriveDailyAvailability(
         parsed.presenceState &&
         parsed.visibility === "public"
       ) {
+        const occupiesDefaultRoom =
+          parsed.presenceState === "in" && parsed.occupiesDefaultRoom !== false;
         const label = getPublicPresenceLabel(
           parsed.presenceState,
-          parsed.presenceState === "in" && parsed.occupiesDefaultRoom !== false,
+          parsed.presenceStatus ?? "confirmed",
+          occupiesDefaultRoom,
           event.startDate,
           eventDay,
         );
@@ -275,20 +297,26 @@ export function deriveDailyAvailability(
   }
 
   return days.map((day) => {
-    const occupiedPresenceRoomIds = new Set(
-      config.people.flatMap((person) =>
-        day.presenceStatesByPerson.get(person.id) === "in" &&
-        day.presenceOccupiesDefaultRoomByPerson.get(person.id) !== false &&
-        person.defaultRoomId
-          ? [person.defaultRoomId]
-          : [],
-      ),
-    );
-    const rooms = day.rooms.map((room) =>
-      occupiedPresenceRoomIds.has(room.id)
-        ? { ...room, status: "occupied" as const }
-        : room,
-    );
+    const rooms = day.rooms.map((room) => {
+      let status = room.status;
+
+      for (const person of config.people) {
+        if (person.defaultRoomId !== room.id) {
+          continue;
+        }
+
+        const presenceRoomStatus =
+          day.presenceRoomStatusByPerson.get(person.id) ?? "free";
+
+        if (presenceRoomStatus === "free") {
+          continue;
+        }
+
+        status = mergeRoomStatus(status, presenceRoomStatus);
+      }
+
+      return status === room.status ? room : { ...room, status };
+    });
     const occupiedRooms = rooms.filter(
       (room) => room.status === "occupied",
     ).length;

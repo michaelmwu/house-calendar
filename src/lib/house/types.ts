@@ -187,6 +187,7 @@ export const parsedCalendarEventSchema = z.object({
   personId: z.string().optional(),
   guestName: z.string().optional(),
   stayStatus: z.enum(["confirmed", "tentative"]).optional(),
+  presenceStatus: z.enum(["confirmed", "tentative"]).optional(),
   roomId: z.string().optional(),
   location: z.string().optional(),
   presenceState: presenceStateSchema.optional(),

@@ -6,6 +6,7 @@ import {
 
 const STAY_RE = /\bstay\b/;
 const MAYBE_STAY_RE = /\bmaybe stay\b/;
+const MAYBE_RE = /\bmaybe\b/;
 const OUT_RE = /\b(out|away)\b/;
 const IN_RE = /\bin\b/;
 const WHOLE_HOUSE_RE = /\b(whole house|house)\b/;
@@ -58,9 +59,22 @@ function inferStayStatus(normalizedTitle: string): "confirmed" | "tentative" {
     : "confirmed";
 }
 
-function stripTentativeStayMarkers(title: string): string {
+function inferPresenceStatus(
+  normalizedTitle: string,
+): "confirmed" | "tentative" {
+  return MAYBE_RE.test(normalizedTitle) ||
+    extractBracketHints(normalizedTitle).some(isTentativeHint)
+    ? "tentative"
+    : "confirmed";
+}
+
+function stripTentativeMarkers(title: string): string {
+  if (OUT_RE.test(title)) {
+    return title.trim().replace(/\s+/g, " ");
+  }
+
   return title
-    .replace(/\bmaybe\s+(stay|stays)\b/gi, "$1")
+    .replace(/\bmaybe\s+(stay|stays|in)\b/gi, "$1")
     .replace(/\(([^)]+)\)/g, (_match, content: string) => {
       const filtered = content
         .split(",")
@@ -135,6 +149,7 @@ function getTemplatedPresenceVisibility(
 function parsePresenceLocationDetails(rawLocation: string | undefined): {
   location: string | undefined;
   occupiesDefaultRoom?: boolean;
+  presenceStatus?: "confirmed" | "tentative";
 } {
   const trimmedLocation = rawLocation?.trim();
 
@@ -144,18 +159,38 @@ function parsePresenceLocationDetails(rawLocation: string | undefined): {
     };
   }
 
-  if (isNotStayingHint(trimmedLocation)) {
+  const rawParts = trimmedLocation
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const presenceStatus = rawParts.some(isTentativeHint)
+    ? "tentative"
+    : undefined;
+  const cleanedLocation = rawParts
+    .filter((value) => !isTentativeHint(value))
+    .join(", ");
+
+  if (!cleanedLocation) {
     return {
       location: undefined,
-      occupiesDefaultRoom: false,
+      presenceStatus,
     };
   }
 
-  const notStayingMatch = trimmedLocation.match(NOT_STAYING_SUFFIX_RE);
+  if (isNotStayingHint(cleanedLocation)) {
+    return {
+      location: undefined,
+      occupiesDefaultRoom: false,
+      presenceStatus,
+    };
+  }
+
+  const notStayingMatch = cleanedLocation.match(NOT_STAYING_SUFFIX_RE);
 
   if (!notStayingMatch) {
     return {
-      location: trimmedLocation,
+      location: cleanedLocation,
+      presenceStatus,
     };
   }
 
@@ -164,6 +199,7 @@ function parsePresenceLocationDetails(rawLocation: string | undefined): {
   return {
     location: location ? location : undefined,
     occupiesDefaultRoom: false,
+    presenceStatus,
   };
 }
 
@@ -183,7 +219,7 @@ function matchTemplatedPresenceRule(
         new RegExp(`^${escapedCandidate} out of japan(?: \\((.+)\\))?$`, "i"),
       );
 
-      if (outMatch) {
+      if (outMatch && inferPresenceStatus(normalizedTitle) === "confirmed") {
         return {
           normalizedTitle,
           type: "presence",
@@ -200,7 +236,10 @@ function matchTemplatedPresenceRule(
         new RegExp(`^${escapedCandidate} out \\((.+)\\)$`, "i"),
       );
 
-      if (bracketOutMatch) {
+      if (
+        bracketOutMatch &&
+        inferPresenceStatus(normalizedTitle) === "confirmed"
+      ) {
         return {
           normalizedTitle,
           type: "presence",
@@ -218,9 +257,8 @@ function matchTemplatedPresenceRule(
       );
 
       if (bracketInMatch) {
-        const { location, occupiesDefaultRoom } = parsePresenceLocationDetails(
-          bracketInMatch[1],
-        );
+        const { location, occupiesDefaultRoom, presenceStatus } =
+          parsePresenceLocationDetails(bracketInMatch[1]);
 
         return {
           normalizedTitle,
@@ -230,19 +268,20 @@ function matchTemplatedPresenceRule(
           presenceState: "in",
           location,
           occupiesDefaultRoom,
+          presenceStatus:
+            presenceStatus ?? inferPresenceStatus(normalizedTitle),
           visibility,
           confidence: 0.98,
         };
       }
 
       const textInMatch = normalizedTitle.match(
-        new RegExp(`^${escapedCandidate} in (.+)$`, "i"),
+        new RegExp(`^${escapedCandidate} (maybe\\s+)?in (.+)$`, "i"),
       );
 
       if (textInMatch) {
-        const { location, occupiesDefaultRoom } = parsePresenceLocationDetails(
-          textInMatch[1],
-        );
+        const { location, occupiesDefaultRoom, presenceStatus } =
+          parsePresenceLocationDetails(textInMatch[2]);
 
         return {
           normalizedTitle,
@@ -252,6 +291,12 @@ function matchTemplatedPresenceRule(
           presenceState: "in",
           location,
           occupiesDefaultRoom,
+          presenceStatus:
+            textInMatch[1] ||
+            presenceStatus === "tentative" ||
+            inferPresenceStatus(normalizedTitle) === "tentative"
+              ? "tentative"
+              : "confirmed",
           visibility,
           confidence: 0.98,
         };
@@ -298,9 +343,8 @@ function matchExplicitRule(
       case "presence.in": {
         const explicitNotStaying =
           stripNotStayingMarker(normalizedTitle) !== normalizedTitle;
-        const { location, occupiesDefaultRoom } = parsePresenceLocationDetails(
-          match[1]?.trim(),
-        );
+        const { location, occupiesDefaultRoom, presenceStatus } =
+          parsePresenceLocationDetails(match[1]?.trim());
 
         return {
           normalizedTitle,
@@ -311,11 +355,17 @@ function matchExplicitRule(
           location,
           occupiesDefaultRoom:
             occupiesDefaultRoom ?? (explicitNotStaying ? false : undefined),
+          presenceStatus:
+            presenceStatus ?? inferPresenceStatus(normalizedTitle),
           visibility: rule.visibility,
           confidence: 0.95,
         };
       }
       case "presence.out":
+        if (inferPresenceStatus(normalizedTitle) === "tentative") {
+          continue;
+        }
+
         return {
           normalizedTitle,
           type: "presence",
@@ -404,7 +454,10 @@ function fallbackPresenceParse(
 
   const bracketHint = extractBracketHint(normalizedTitle);
 
-  if (OUT_RE.test(normalizedTitle)) {
+  if (
+    OUT_RE.test(normalizedTitle) &&
+    inferPresenceStatus(normalizedTitle) === "confirmed"
+  ) {
     const locationMatch = normalizedTitle.match(/\bout of ([^)]+)$/i);
 
     return {
@@ -423,9 +476,10 @@ function fallbackPresenceParse(
   if (
     bracketHint &&
     !STAY_RE.test(normalizedTitle) &&
+    !OUT_RE.test(normalizedTitle) &&
     !isNotStayingHint(bracketHint)
   ) {
-    const { location, occupiesDefaultRoom } =
+    const { location, occupiesDefaultRoom, presenceStatus } =
       parsePresenceLocationDetails(bracketHint);
 
     return {
@@ -436,6 +490,7 @@ function fallbackPresenceParse(
       personId,
       location,
       occupiesDefaultRoom,
+      presenceStatus: presenceStatus ?? inferPresenceStatus(normalizedTitle),
       presenceState: "in",
       visibility: "private",
       confidence: 0.86,
@@ -443,10 +498,14 @@ function fallbackPresenceParse(
   }
 
   if (IN_RE.test(normalizedTitle)) {
-    const locationMatch = normalizedTitle.match(/(?:^|\b)in (.+)$/i);
-    const { location, occupiesDefaultRoom } = parsePresenceLocationDetails(
-      locationMatch?.[1]?.trim(),
-    );
+    const locationMatch = normalizedTitle.match(/(?:^|\b)(maybe\s+)?in (.+)$/i);
+    const { location, occupiesDefaultRoom, presenceStatus } =
+      parsePresenceLocationDetails(locationMatch?.[2]?.trim());
+
+    const inferredPresenceStatus =
+      locationMatch?.[1] || inferPresenceStatus(normalizedTitle) === "tentative"
+        ? "tentative"
+        : (presenceStatus ?? inferPresenceStatus(normalizedTitle));
 
     return {
       rawTitle: normalizedTitle,
@@ -456,6 +515,7 @@ function fallbackPresenceParse(
       personId,
       location,
       occupiesDefaultRoom,
+      presenceStatus: inferredPresenceStatus,
       presenceState: "in",
       visibility: "private",
       confidence: locationMatch ? 0.82 : 0.7,
@@ -472,8 +532,8 @@ export function parseEventTitle(
   const config = houseConfigSchema.parse(configInput);
   const canonicalTitle = canonicalizeTitle(title);
   const normalizedTitle = normalizeTitle(title);
-  const strippedCanonicalTitle = stripTentativeStayMarkers(canonicalTitle);
-  const strippedNormalizedTitle = stripTentativeStayMarkers(normalizedTitle);
+  const strippedCanonicalTitle = stripTentativeMarkers(canonicalTitle);
+  const strippedNormalizedTitle = stripTentativeMarkers(normalizedTitle);
   const notStayingStrippedCanonicalTitle =
     stripNotStayingMarker(canonicalTitle);
   const notStayingStrippedNormalizedTitle =
