@@ -176,9 +176,7 @@ export default async function SiteHomePage({
         ...day,
         events: [],
       }));
-  const requestPolicy = houseConfig.sharePolicies.find(
-    (policy) => policy.canRequest,
-  );
+  const stayRequestsEnabled = false;
 
   return (
     <main className="min-h-screen px-4 py-5 text-[var(--app-foreground)] sm:px-6 sm:py-6 lg:px-8">
@@ -202,7 +200,7 @@ export default async function SiteHomePage({
         <Calendar
           days={calendarDays}
           houseName={houseConfig.name}
-          requestEnabled={Boolean(requestPolicy?.canRequest)}
+          requestEnabled={stayRequestsEnabled}
           timedNotes={timedNotes}
           timezone={houseConfig.timezone}
         />

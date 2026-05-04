@@ -13,7 +13,7 @@ It is built for the case where you want trusted people to know whether a room or
 - Surfaces short same-day timed notes alongside availability when the owner adds them to the source calendar
 - Redacts guest details and only shows housemate presence when configured explicitly
 - Supports one deployment with multiple houses, each with its own branding and parsing rules
-- Lets trusted viewers make lightweight stay requests without turning requests into automatic holds
+- Keeps the viewer experience read-only until stay requests have real notification or requester-auth support
 - Gives the owner a small self-hosted admin flow with password-based access and manual sync controls
 
 ## Docs
@@ -22,6 +22,7 @@ It is built for the case where you want trusted people to know whether a room or
 - [DEPLOYMENT.md](./DEPLOYMENT.md) for provider-agnostic deployment requirements and config/env setup
 - [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution expectations and review guardrails
 - [ARCHITECTURE.md](./ARCHITECTURE.md) for system boundaries, data flow, privacy model, and technical direction
+- [ROADMAP.md](./ROADMAP.md) for deferred product work and request workflow prerequisites
 - [AGENTS.md](./AGENTS.md) for project-specific agent instructions
 - [config/config.example.json](./config/config.example.json) for the checked-in config shape
 
