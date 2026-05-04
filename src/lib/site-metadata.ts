@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { SiteConfig } from "@/lib/config/config";
 
 const fallbackDescription =
-  "Private house occupancy, public availability, and lightweight stay requests.";
+  "Private house occupancy and redacted availability for trusted viewers.";
 
 type BrandingConfig = SiteConfig["site"]["branding"];
 

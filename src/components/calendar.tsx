@@ -419,7 +419,10 @@ function constrainPreviewSize(
     ),
     width: Math.max(
       0,
-      Math.min(previewSize.width, viewportSize.width - previewViewportPadding * 2),
+      Math.min(
+        previewSize.width,
+        viewportSize.width - previewViewportPadding * 2,
+      ),
     ),
   };
 }
@@ -439,11 +442,16 @@ function clampPreviewPosition(
   previewSize: PreviewSize,
   viewportSize: ViewportSize,
 ): PreviewPosition {
-  const constrainedPreviewSize = constrainPreviewSize(previewSize, viewportSize);
+  const constrainedPreviewSize = constrainPreviewSize(
+    previewSize,
+    viewportSize,
+  );
   const maxX =
     viewportSize.width - constrainedPreviewSize.width - previewViewportPadding;
   const maxY =
-    viewportSize.height - constrainedPreviewSize.height - previewViewportPadding;
+    viewportSize.height -
+    constrainedPreviewSize.height -
+    previewViewportPadding;
 
   return {
     ...position,
@@ -470,11 +478,16 @@ export function getPointerPreviewPosition(
   previewSize: PreviewSize,
   viewportSize: ViewportSize,
 ): PreviewPosition {
-  const constrainedPreviewSize = constrainPreviewSize(previewSize, viewportSize);
+  const constrainedPreviewSize = constrainPreviewSize(
+    previewSize,
+    viewportSize,
+  );
   const maxX =
     viewportSize.width - constrainedPreviewSize.width - previewViewportPadding;
   const maxY =
-    viewportSize.height - constrainedPreviewSize.height - previewViewportPadding;
+    viewportSize.height -
+    constrainedPreviewSize.height -
+    previewViewportPadding;
 
   return {
     x: clampToRange(
@@ -495,21 +508,29 @@ export function getAnchorPreviewPosition(
   previewSize: PreviewSize,
   viewportSize: ViewportSize,
 ): PreviewPosition {
-  const constrainedPreviewSize = constrainPreviewSize(previewSize, viewportSize);
+  const constrainedPreviewSize = constrainPreviewSize(
+    previewSize,
+    viewportSize,
+  );
   const maxX =
     viewportSize.width - constrainedPreviewSize.width - previewViewportPadding;
   const maxY =
-    viewportSize.height - constrainedPreviewSize.height - previewViewportPadding;
+    viewportSize.height -
+    constrainedPreviewSize.height -
+    previewViewportPadding;
   const centeredX =
     anchorRect.left + anchorRect.width / 2 - constrainedPreviewSize.width / 2;
   const belowY = anchorRect.bottom + previewAnchorGap;
-  const aboveY = anchorRect.top - constrainedPreviewSize.height - previewAnchorGap;
+  const aboveY =
+    anchorRect.top - constrainedPreviewSize.height - previewAnchorGap;
   const fitsBelow = belowY <= maxY;
   const fitsAbove = aboveY >= previewViewportPadding;
   const spaceBelow =
-    viewportSize.height - previewViewportPadding - anchorRect.bottom - previewAnchorGap;
-  const spaceAbove =
-    anchorRect.top - previewViewportPadding - previewAnchorGap;
+    viewportSize.height -
+    previewViewportPadding -
+    anchorRect.bottom -
+    previewAnchorGap;
+  const spaceAbove = anchorRect.top - previewViewportPadding - previewAnchorGap;
   const shouldPlaceBelow =
     fitsBelow || (!fitsAbove && spaceBelow >= spaceAbove);
   const nextX = clampToRange(centeredX, previewViewportPadding, maxX);
@@ -671,10 +692,14 @@ export function Calendar({
       type: "pointer",
     });
     setPreviewPosition(
-      getPointerPreviewPosition({
-        x: event.clientX,
-        y: event.clientY,
-      }, previewSize ?? getFallbackPreviewSize(viewportSize), viewportSize),
+      getPointerPreviewPosition(
+        {
+          x: event.clientX,
+          y: event.clientY,
+        },
+        previewSize ?? getFallbackPreviewSize(viewportSize),
+        viewportSize,
+      ),
     );
   };
   const selectDay = (dayDate: string, event: MouseEvent<HTMLButtonElement>) => {
@@ -719,7 +744,9 @@ export function Calendar({
         }
       : null;
     const nextPreviewSize =
-      measuredPreviewSize ?? previewSize ?? getFallbackPreviewSize(viewportSize);
+      measuredPreviewSize ??
+      previewSize ??
+      getFallbackPreviewSize(viewportSize);
 
     if (
       measuredPreviewSize &&
@@ -870,7 +897,9 @@ export function Calendar({
                 requestEnabled ? "bg-emerald-500" : "bg-stone-400"
               }`}
             />
-            {requestEnabled ? "Stay requests enabled" : "View only"}
+            {requestEnabled
+              ? "Stay requests enabled"
+              : "Stay requests disabled"}
           </div>
         </div>
 

@@ -79,6 +79,10 @@ What is still scaffolding:
 - share token implementation
 - request submission and approval workflow
 
+Stay requests are intentionally disabled in the current viewer UI. They should
+not be presented as enabled until the product has a real owner notification
+path or requester identity layer such as Google OAuth.
+
 ## Architectural Principles
 
 ### 1. Deterministic before intelligent
